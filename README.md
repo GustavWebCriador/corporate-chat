@@ -115,7 +115,7 @@ README.md — documentação principal do projeto.
 Clone o projeto utilizando o Git:
 
 ```bash
-git clone <URL_DO_REPOSITORIO>
+git clone https://github.com/GustavWebCriador/corporate-chat.git
 ```
 
 Acesse a pasta:
