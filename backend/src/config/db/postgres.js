@@ -1,16 +1,36 @@
-const { Pool } = require('pg');
+const { Sequelize } = require ("sequelize");
 
-const pool = new Pool ({
+const sequelize = new Sequelize (
+    process.env.POSTGRES_DB,
+    process.env.POSTGRES_USER,
+    process.env.POSTGRES_PASSWORD,
+    {
+        host: process.env.POSTGRES_HOST,
+        port: Number(process.env.POSTGRES_PORT),
+
+        dialect: "postgres",
+
+        loggin: false,
+
+        define: {
+            timestamps: false,
+            freezeTableName: true,
+        },
+    }
+);
+
+/*const pool = new Pool ({
     host: process.env.POSTGRES_HOST,
     port: process.env.POSTGRES_PORT,
     user: process.env.POSTGRES_USER,
     password: process.env.POSTGRES_PASSWORD,   
     database: process.env.POSTGRES_DB,
-});
+});*/
 
 async function connectPostgres() {
     try {
-        const client = await pool.connect();
+        
+        await sequelize.authenticate();
 
         console.log("[POSTGRES] Connection established successfully.");
 
@@ -23,7 +43,6 @@ async function connectPostgres() {
 }
 
 module.exports = {
-    pool,
+    sequelize,
     connectPostgres,
 };
-
