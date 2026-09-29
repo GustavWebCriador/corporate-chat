@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-module.exporst = {
+module.exports = {
 
     development: {
         username: process.env.POSTGRES_USER,
