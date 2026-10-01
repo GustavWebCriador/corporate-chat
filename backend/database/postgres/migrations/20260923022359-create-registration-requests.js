@@ -81,27 +81,6 @@ module.exports = {
                 },
             }
         );
-
-
-        await queryInterface.addConstraint(
-            "registration_requests",
-            {
-                fields: ["status"],
-
-                type: "check",
-
-                where: {
-                    status: [
-                        "PENDING",
-                        "APPROVED",
-                        "REJECTED",
-                    ],
-                },
-
-                name:
-                    "registration_requests_status_check",
-            }
-        );
     },
 
 

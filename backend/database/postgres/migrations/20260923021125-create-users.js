@@ -69,25 +69,6 @@ module.exports = {
                 },
             }
         );
-
-
-        await queryInterface.addConstraint(
-            "users",
-            {
-                fields: ["status"],
-
-                type: "check",
-
-                where: {
-                    status: [
-                        "ACTIVE",
-                        "INACTIVE",
-                    ],
-                },
-
-                name: "users_status_check",
-            }
-        );
     },
 
 
