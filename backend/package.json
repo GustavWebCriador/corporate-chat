@@ -15,10 +15,20 @@
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
 
+    "postgres:test": "node database/postgres/health-test.js",
+
+
 
     "mongo:indexes": "node database/mongodb/sync-indexes.js",
     "mongo:seed": "node database/mongodb/seeds/development.js",
-    "mongo:test": "node database/mongodb/smoke-test.js"
+    "mongo:test": "node database/mongodb/smoke-test.js",
+    "mongo:health": "node database/mongodb/health-test.js",
+
+    "env:sync": "node scripts/sync-dev.js",
+
+    "env:fresh": "node scripts/fresh-dev.js"
+
+
   },
   "keywords": [],
   "author": "",
