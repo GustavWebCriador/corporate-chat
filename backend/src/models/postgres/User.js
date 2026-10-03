@@ -1,7 +1,7 @@
 const {
     DataTypes,
     Model
-} = require ("sequelize");
+} = require("sequelize");
 
 class User extends Model {
     static initModel(sequelize) {
@@ -10,26 +10,28 @@ class User extends Model {
                 user_id: {
                     type: DataTypes.UUID,
                     primaryKey: true,
-
-                    dafaultValue:
-                        DataTypes.UUIDV4,
+                    defaultValue: DataTypes.UUIDV4,
                 },
+
                 name: {
-                    type: DataType.STRING(150),
+                    type: DataTypes.STRING(150),
                     allowNull: false,
-                 },
+                },
+
                 email: {
                     type: DataTypes.STRING(50),
-                    allowNull:false,
+                    allowNull: false,
                     unique: true,
                 },
-                passworod_hash: {
+
+                password_hash: {
                     type: DataTypes.STRING(255),
                     allowNull: false,
                 },
+
                 status: {
-                    type: DataType.STRING(20), 
-                    allowNull: false, 
+                    type: DataTypes.STRING(20),
+                    allowNull: false,
 
                     validate: {
                         isIn: [
@@ -37,25 +39,29 @@ class User extends Model {
                                 "ACTIVE",
                                 "INACTIVE",
                             ],
-                        ],               
+                        ],
                     },
                 },
+
                 is_admin: {
-                    type: DataTypes.BOOLEAN, 
+                    type: DataTypes.BOOLEAN,
                     allowNull: false,
-                    defaultValue: false, 
+                    defaultValue: false,
                 },
+
                 created_at: {
                     type: DataTypes.DATE,
                     allowNull: false,
                 },
+
                 updated_at: {
-                    type: DatTypes.DATE,
+                    type: DataTypes.DATE,
                     allowNull: false,
                 },
+
                 last_login_at: {
                     type: DataTypes.DATE,
-                    allowNull:true,
+                    allowNull: true,
                 },
             },
             {
@@ -65,11 +71,12 @@ class User extends Model {
                 timestamps: true,
 
                 createdAt: "created_at",
-                updated: "update_at",
+                updatedAt: "updated_at",
             }
-         );
-         return User;
+        );
+
+        return User;
     }
 }
 
-module.exports = User; 
+module.exports = User;

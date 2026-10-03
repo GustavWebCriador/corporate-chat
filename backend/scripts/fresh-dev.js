@@ -120,9 +120,15 @@ console.log(
 
 /*
  * Remove infraestrutura e volumes
+ *
+ * IMPORTANTE:
+ * O docker-compose.yml está na raiz do projeto,
+ * mas o .env está dentro de backend.
+ *
+ * Por isso usamos --env-file .env.
  */
 run(
-    'docker compose -f "../docker-compose.yml" down -v'
+    'docker compose --env-file ".env" -f "../docker-compose.yml" down -v'
 );
 
 
@@ -130,44 +136,38 @@ run(
  * Cria PostgreSQL e MongoDB vazios
  */
 run(
-    'docker compose -f "../docker-compose.yml" up -d --wait'
+    'docker compose --env-file ".env" -f "../docker-compose.yml" up -d --wait'
 );
 
 
 /*
- * PostgreSQL
+ * PostgreSQL - migrations
  */
 run(
     "npx sequelize-cli db:migrate"
 );
 
 
-run(
-    "npx sequelize-cli db:seed:all"
-);
-
-
 /*
- * MongoDB
+ * Seeds PostgreSQL + MongoDB
+ * e validação dos dados de desenvolvimento
  */
 run(
-    "node database/mongodb/sync-indexes.js"
-);
-
-
-run(
-    "node database/mongodb/seeds/development.js"
+    "node scripts/seed-dev.js"
 );
 
 
 /*
- * Testes
+ * Testes PostgreSQL
  */
 run(
     "node database/postgres/health-test.js"
 );
 
 
+/*
+ * Testes MongoDB
+ */
 run(
     "node database/mongodb/smoke-test.js"
 );
@@ -177,7 +177,9 @@ run(
 );
 
 
-
+/*
+ * Status final das migrations PostgreSQL
+ */
 run(
     "npx sequelize-cli db:migrate:status"
 );

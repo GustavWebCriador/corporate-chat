@@ -1,6 +1,6 @@
 const {
     sequelize
-} = require ("../../config/databse/postgres");
+} = require ("../../config/db/postgres");
 
 const User = 
     require("./User");
@@ -14,7 +14,7 @@ RegistrationRequest.initModel(
     sequelize
 );
 
-RegistrationRequest.belongsTo(
+RegistrationRequest.belongsTo( 
     User,
     {
         as: "reviewer",

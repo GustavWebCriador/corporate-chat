@@ -115,17 +115,12 @@ run(
  *
  * Como SequelizeData está habilitado,
  * apenas novos seeders serão executados.
- */
-run(
-    "npx sequelize-cli db:seed:all"
-);
-
-
-/*
+ *
+ *
  * MongoDB indexes
  */
 run(
-    "node database/mongodb/sync-indexes.js"
+    "node scripts/seed-dev.js"
 );
 
 /*
