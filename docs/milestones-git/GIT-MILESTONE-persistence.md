@@ -131,13 +131,13 @@ git rev-parse --short HEAD
 A partir do commit final:
 
 ```bash
-git branch milestone/persistence-per-01-10
+git branch milestone/persistence-sprint
 ```
 
 Para enviar ao repositório remoto:
 
 ```bash
-git push -u origin milestone/persistence-per-01-10
+git push -u origin milestone/persistence-sprint
 ```
 
 A branch passa a representar a versão consolidada da persistência.
