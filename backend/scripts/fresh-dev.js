@@ -176,6 +176,22 @@ run(
     "node database/mongodb/health-test.js"
 );
 
+/*
+ * PER-09
+ * Verifica consultas utilizando
+ * a massa oficial da PER-06.
+ */
+run(
+    "npm run queries:verify"
+);
+
+/*
+ * PER-07/08
+ * Testes completos de integridade.
+ */
+run(
+    "npm test"
+);
 
 /*
  * Status final das migrations PostgreSQL

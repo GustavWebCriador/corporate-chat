@@ -11,8 +11,9 @@ O projeto utiliza uma arquitetura de persistência híbrida:
 - **Socket.IO** para comunicação em tempo real;
 - **Docker + Docker Compose** para padronização do ambiente de desenvolvimento.
 
-> **Status da persistência:** ambiente de desenvolvimento evoluído até a **PER-07 do Product Backlog**, com migrations, seeders, massa de dados de desenvolvimento integrada, índices, testes de saúde, testes automatizados de integridade e scripts de sincronização/reconstrução do ambiente.
-
+```markdown
+> **Status da persistência:** infraestrutura de persistência implementada com PostgreSQL e MongoDB, migrations, seeders, constraints, índices, ambiente reproduzível, massa DEV idempotente, testes automatizados de integridade, integração lógica entre bancos, consultas críticas, rastreabilidade e evidências técnicas.
+```
 ---
 
 ## Tecnologias utilizadas
@@ -89,8 +90,8 @@ Ferramentas opcionais para inspeção dos bancos:
 - pgAdmin
 - MongoDB Compass
 
-> **Importante:** DBeaver, pgAdmin e MongoDB Compass **não são necessários para criar a estrutura do ambiente**.  
-> A partir da PER-05, migrations, seeders e índices devem ser criados automaticamente pelos scripts do projeto.
+> **Importante:** DBeaver, pgAdmin e MongoDB Compass **não são necessários para criar a estrutura do ambiente**.
+> Migrations, seeders e índices devem ser criados automaticamente pelos scripts do projeto.
 
 ---
 
@@ -316,16 +317,16 @@ O `env:fresh` deve:
 11. Exibir o status final das migrations.
 
 > [!WARNING]
-> `npm run env:fresh -- --confirm` remove os dados locais do PostgreSQL e MongoDB.  
+> `npm run env:fresh -- --confirm` remove os dados locais do PostgreSQL e MongoDB.
 > Utilize somente quando realmente desejar reconstruir o ambiente do zero.
 
 O parâmetro `--confirm` existe como proteção contra exclusões acidentais.
 
 ---
 
-# PER-05 — Ambiente reproduzível
+# Ambiente de desenvolvimento reproduzível
 
-A PER-05 consolida o ambiente de persistência para que qualquer integrante da equipe consiga reproduzir a mesma estrutura de banco sem criação manual.
+O ambiente de persistência foi estruturado para que qualquer integrante da equipe consiga reproduzir a mesma estrutura de banco sem criação manual.
 
 Os principais pontos da entrega são:
 
@@ -341,7 +342,7 @@ Os principais pontos da entrega são:
 - script de reconstrução completa com confirmação;
 - documentação do fluxo no README.
 
-## Scripts relacionados à PER-05
+## Scripts de persistência e automação
 
 A configuração do `package.json` deve disponibilizar scripts equivalentes a:
 
@@ -511,7 +512,7 @@ seed
 
 # Testes de saúde
 
-A PER-05 adiciona validações para garantir que os dois bancos estão acessíveis antes da continuidade do fluxo.
+O projeto possui validações para garantir que os dois bancos estejam acessíveis antes da continuidade do fluxo.
 
 ## PostgreSQL
 
@@ -581,9 +582,9 @@ Retorno esperado:
 
 ---
 
-# Teste oficial da PER-05
+# Validação do ambiente reproduzível
 
-O teste principal da PER-05 deve ser realizado preferencialmente em uma máquina que ainda não possua o ambiente configurado pelo responsável pela implementação.
+A validação do ambiente reproduzível deve ser realizada preferencialmente em uma máquina que ainda não possua o ambiente configurado pelo responsável pela implementação.
 
 ## 1. Clonar o projeto
 
@@ -630,9 +631,9 @@ O objetivo é comprovar que o repositório é suficiente para reproduzir todo o 
 ### PostgreSQL
 
 ```text
-users                    ✅
-registration_requests    ✅
-constraints              ✅
+users                     ✅
+registration_requests     ✅
+constraints               ✅
 indexes                   ✅
 seed users                ✅
 migrations                ✅
@@ -900,7 +901,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-No fluxo normal da PER-05, `env:sync` e `env:fresh` devem garantir essa ordem automaticamente.
+No fluxo normal do projeto, `env:sync` e `env:fresh` devem garantir essa ordem automaticamente.
 
 ---
 
@@ -984,18 +985,18 @@ sem precisar:
 - copiar estruturas de banco de outra máquina.
 ```
 
-Esse ambiente reproduzível foi consolidado pela **PER-05** e evoluído pelas **PER-06 e PER-07** com massa de desenvolvimento integrada e testes automatizados de integridade.
+Esse ambiente reproduzível foi evoluído com massa de desenvolvimento integrada e testes automatizados de integridade.
 
 ---
 
 
-# PER-06 — Massa de dados de desenvolvimento integrada
+# Massa de dados de desenvolvimento integrada
 
-A PER-06 consolida uma massa de dados de desenvolvimento previsível, integrada e reproduzível entre PostgreSQL e MongoDB.
+O projeto utiliza uma massa de dados de desenvolvimento previsível, integrada e reproduzível entre PostgreSQL e MongoDB.
 
 O objetivo é permitir que qualquer integrante da equipe tenha dados coerentes para desenvolvimento e testes sem precisar cadastrar registros manualmente.
 
-## Estrutura da PER-06
+## Estrutura da massa de desenvolvimento
 
 Os dados compartilhados entre os dois bancos utilizam identificadores determinísticos.
 
@@ -1007,7 +1008,7 @@ backend/database/shared/dev-fixtures.js
 
 Esse arquivo centraliza os identificadores utilizados pela massa de desenvolvimento, evitando divergências entre PostgreSQL e MongoDB.
 
-Entre os principais pontos da PER-06 estão:
+Entre os principais pontos dessa estrutura estão:
 
 - usuários de desenvolvimento no PostgreSQL;
 - solicitações de cadastro no PostgreSQL;
@@ -1095,7 +1096,7 @@ O processo inclui:
 Para validar a massa de desenvolvimento:
 
 ```bash
-npm run verify:dev-seed
+npm run seed:verify
 ```
 
 O script responsável é:
@@ -1110,7 +1111,7 @@ A verificação confirma se os registros esperados estão presentes nos dois ban
 
 ## Idempotência
 
-Uma exigência central da PER-06 é permitir múltiplas execuções do seed sem gerar dados duplicados.
+Uma exigência central da massa de desenvolvimento é permitir múltiplas execuções do seed sem gerar dados duplicados.
 
 O MongoDB utiliza operações equivalentes a `upsert`, evitando recriação desnecessária dos mesmos documentos.
 
@@ -1185,9 +1186,9 @@ A massa de desenvolvimento não deve ser carregada automaticamente em produção
 
 ---
 
-# PER-07 — Testes automatizados de integridade da persistência
+# Testes automatizados de integridade da persistência
 
-A PER-07 adiciona uma suíte automatizada destinada a validar as regras de integridade implementadas no PostgreSQL e MongoDB.
+O projeto possui uma suíte automatizada destinada a validar as regras de integridade implementadas no PostgreSQL e MongoDB.
 
 Os testes utilizam o módulo nativo:
 
@@ -1238,7 +1239,7 @@ O script `npm test` utiliza a suíte de integridade como teste principal da pers
 
 ---
 
-## O que a PER-07 valida
+## O que os testes validam
 
 ### PostgreSQL
 
@@ -1315,7 +1316,7 @@ ambiente preservado
 
 ## Cenários positivos e negativos
 
-A PER-07 não testa apenas operações válidas.
+A suíte de testes não valida apenas operações válidas.
 
 Também são executados cenários que **devem falhar** quando uma regra de integridade é violada.
 
@@ -1337,7 +1338,7 @@ Isso comprova que as regras do modelo de dados não existem apenas na documenta�
 
 ## Fluxo de validação da persistência
 
-Com PER-05, PER-06 e PER-07, o fluxo recomendado passa a ser:
+O fluxo recomendado de validação da persistência é:
 
 ```text
 git pull
@@ -1374,12 +1375,12 @@ ambiente validado
 
 ---
 
-## Critério de conclusão até PER-07
+## Critérios de validação da persistência
 
 A camada de persistência pode ser considerada validada nesta etapa quando:
 
 ```text
-PER-05
+Ambiente
 ✅ ambiente reproduzível
 ✅ migrations automatizadas
 ✅ seeders automatizados
@@ -1387,7 +1388,7 @@ PER-05
 ✅ env:sync
 ✅ env:fresh
 
-PER-06
+Massa de desenvolvimento
 ✅ fixtures compartilhadas
 ✅ seed integrado PostgreSQL + MongoDB
 ✅ IDs determinísticos
@@ -1395,7 +1396,7 @@ PER-06
 ✅ verificação da massa
 ✅ dados coerentes entre os bancos
 
-PER-07
+Testes
 ✅ testes PostgreSQL
 ✅ testes MongoDB
 ✅ testes positivos
@@ -1408,7 +1409,7 @@ PER-07
 
 # Status atual
 
-Até a **PER-07**, o Corporate Chat possui uma base de persistência reproduzível, populável e testável automaticamente.
+O Corporate Chat possui uma base de persistência reproduzível, populável e testável automaticamente.
 
 ```text
 Corporate Chat
@@ -1450,53 +1451,6 @@ Corporate Chat
 
 A camada de persistência deixa de depender apenas da criação automática da estrutura e passa também a possuir dados previsíveis e testes capazes de comprovar as principais regras de integridade.
 
-## Evolução do Product Backlog
-
-A evolução da camada de persistência do **Corporate Chat** foi organizada através das PERs do Product Backlog.
-
-Até o momento, as **PER-01 até PER-07** foram implementadas, formando a base da infraestrutura, modelagem, integridade, reprodução do ambiente e testes automatizados da persistência.
-
-| PER | Entrega principal | Prioridade | Resultado esperado | Situação |
-|---|---|---:|---|---|
-| PER-01 | Preparar ambiente de persistência | P0 | PostgreSQL e MongoDB executando em containers Docker | ✅ Implementada |
-| PER-02 | Implementar schema PostgreSQL | P0 | Tabelas `users` e `registration_requests` implementadas | ✅ Implementada |
-| PER-03 | Implementar models MongoDB | P0 | Collections `conversations`, `conversation_members` e `messages` implementadas | ✅ Implementada |
-| PER-04 | Implementar constraints e índices | P0 | Regras de integridade e índices de desempenho implementados | ✅ Implementada |
-| PER-05 | Criar migrations e inicialização automatizada | P0 | Ambiente de banco reproduzível através de migrations, seeders e scripts de sincronização | ✅ Implementada |
-| PER-06 | Criar seed de desenvolvimento | P1 | Massa de dados integrada, consistente e idempotente entre PostgreSQL e MongoDB | ✅ Implementada |
-| PER-07 | Validar regras de integridade | P0 | Testes automatizados positivos e negativos para PostgreSQL e MongoDB | ✅ Implementada |
-| PER-08 | Validar integração lógica PostgreSQL ↔ MongoDB | P0 | UUIDs corretamente referenciados entre os dois bancos | 📋 Product Backlog |
-| PER-09 | Validar consultas críticas | P1 | Histórico, conversas e consultas principais funcionando corretamente | 📋 Product Backlog |
-| PER-10 | Documentar execução e evidências | P0 | README, procedimentos e evidências finais da Sprint | 📋 Product Backlog |
-
-### Progresso atual
-
-```text
-PER-01  ✅ Ambiente de persistência
-PER-02  ✅ Schema PostgreSQL
-PER-03  ✅ Models MongoDB
-PER-04  ✅ Constraints e índices
-PER-05  ✅ Ambiente reproduzível
-PER-06  ✅ Seed de desenvolvimento
-PER-07  ✅ Testes de integridade
-PER-08  ⏳ Integração lógica PostgreSQL ↔ MongoDB
-PER-09  ⏳ Consultas críticas
-PER-10  ⏳ Documentação e evidências
-```
-
-Com a conclusão da **PER-07**, o projeto possui atualmente:
-
-- ambiente PostgreSQL e MongoDB executado através de Docker;
-- estrutura PostgreSQL versionada por migrations;
-- models e collections MongoDB definidos no código;
-- constraints e índices de integridade;
-- ambiente de desenvolvimento reproduzível;
-- massa de dados de desenvolvimento idempotente;
-- dados relacionados logicamente entre PostgreSQL e MongoDB;
-- testes automatizados de integridade positivos e negativos.
-
-As próximas etapas concentram-se na validação completa da integração entre os bancos, validação das consultas críticas da aplicação e consolidação das evidências técnicas da Sprint.
-
 ---
 
 # Credenciais de desenvolvimento
@@ -1520,7 +1474,7 @@ Caso sejam necessárias credenciais específicas do ambiente da equipe, solicite
 ---
 
 
-# Comandos consolidados até PER-07
+# Comandos consolidados
 
 Na pasta `backend`:
 
@@ -1550,7 +1504,7 @@ npm run mongo:seed
 npm run seed:dev
 
 # Validar a massa de desenvolvimento
-npm run verify:dev-seed
+npm run seed:verify
 
 # Executar testes de integridade
 npm run test:integrity
@@ -1561,6 +1515,20 @@ npm test
 # Iniciar API em desenvolvimento
 npm run dev
 ```
+
+```bash
+cd backend
+npm run env:sync
+npm run env:fresh -- --confirm
+npm run db:migrate:status
+npm run seed:verify
+npm run integration:verify
+npm run queries:verify
+npm test
+npm run verify:persistence
+npm run evidence:persistence
+```
+
 
 > Utilize `npm run` para conferir os scripts disponíveis na versão da branch em uso.
 

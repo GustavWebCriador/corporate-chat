@@ -191,6 +191,44 @@ async function verify() {
         console.log(
             "[MONGODB] Conversations: 2/2 OK"
         );
+        /*
+ * Verifica se todas as conversas DEV
+ * possuem o usuário criador.
+ */
+        const conversationsWithCreator =
+            await Conversation.countDocuments({
+
+                _id: {
+                    $in:
+                        conversationIds,
+                },
+
+                created_by: {
+                    $exists:
+                        true,
+
+                    $nin: [
+                        null,
+                        "",
+                    ],
+                },
+            });
+
+
+        if (
+            conversationsWithCreator !==
+            conversationIds.length
+        ) {
+
+            throw new Error(
+                "Existem conversas DEV sem created_by."
+            );
+        }
+
+
+        console.log(
+            "[MONGODB] Conversation creators: OK"
+        );
 
 
         const memberCount =

@@ -4,25 +4,29 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node src/serve.js",
+    "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-
+    "test": "npm run test:persistence",
+    "test:integrity": "node scripts/test-integrity.js",
+    "integration:verify": "node scripts/verify-cross-db-integrity.js",
+    "verify:persistence": "npm run seed:verify && npm run integration:verify && npm run queries:verify && npm test",
+    "evidence:persistence": "node scripts/collect-persistence-evidence.js",
+    "test:integration": "node --test --test-concurrency=1 database/tests/integration/persistence-integration.test.js",
+    "test:persistence": "npm run test:integrity && npm run test:integration && npm run test:queries",
+    "queries:verify": "node scripts/verify-critical-queries.js",
+    "test:queries": "node --test --test-concurrency=1 database/tests/queries/persistence-queries.test.js",
     "db:migrate": "sequelize-cli db:migrate",
     "db:migrate:status": "sequelize-cli db:migrate:status",
-    "db:migrate:undo": "sequelize-cli dbmigrate:undo",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "postgres:test": "node database/postgres/health-test.js",
-    
     "mongo:indexes": "node database/mongodb/sync-indexes.js",
     "mongo:seed": "node database/mongodb/seeds/development.js",
     "mongo:test": "node database/mongodb/smoke-test.js",
     "mongo:health": "node database/mongodb/health-test.js",
-
     "seed:dev": "node scripts/seed-dev.js",
     "seed:verify": "node scripts/verify-dev-seed.js",
-
     "env:sync": "node scripts/sync-dev.js",
     "env:fresh": "node scripts/fresh-dev.js"
   },
