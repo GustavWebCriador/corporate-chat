@@ -1,15 +1,17 @@
-````markdown
 # Corporate Chat
 
-Sistema de comunicação corporativa desenvolvido com o objetivo de disponibilizar um ambiente seguro e organizado para troca de mensagens entre colaboradores.
+Sistema de comunicação corporativa desenvolvido com o objetivo de disponibilizar um ambiente seguro, organizado e evolutivo para troca de mensagens entre colaboradores.
 
-O projeto utiliza uma arquitetura com persistência híbrida:
+O projeto utiliza uma arquitetura de persistência híbrida:
 
-- PostgreSQL para dados estruturados, como usuários e autenticação;
-- MongoDB para armazenamento de mensagens e histórico de conversas;
-- Node.js e Express no backend;
-- React no frontend;
-- Socket.IO para comunicação em tempo real.
+- **PostgreSQL** para dados estruturados, identidade, autenticação e informações cadastrais;
+- **MongoDB** para conversas, participantes, mensagens e histórico;
+- **Node.js + Express** no backend;
+- **React** no frontend;
+- **Socket.IO** para comunicação em tempo real;
+- **Docker + Docker Compose** para padronização do ambiente de desenvolvimento.
+
+> **Status da persistência:** ambiente de desenvolvimento evoluído até a **PER-07 do Product Backlog**, com migrations, seeders, massa de dados de desenvolvimento integrada, índices, testes de saúde, testes automatizados de integridade e scripts de sincronização/reconstrução do ambiente.
 
 ---
 
@@ -19,10 +21,13 @@ O projeto utiliza uma arquitetura com persistência híbrida:
 
 - Node.js
 - Express
-- PostgreSQL
-- MongoDB
+- Sequelize
+- Sequelize CLI
+- PostgreSQL 16
+- MongoDB 8
 - Mongoose
-- node-postgres (`pg`)
+- `pg`
+- `pg-hstore`
 - CORS
 - dotenv
 - Nodemon
@@ -31,6 +36,10 @@ O projeto utiliza uma arquitetura com persistência híbrida:
 
 - React
 
+### Comunicação em tempo real
+
+- Socket.IO
+
 ### Infraestrutura
 
 - Docker
@@ -38,23 +47,56 @@ O projeto utiliza uma arquitetura com persistência híbrida:
 
 ---
 
-# Pré-requisitos
+# Arquitetura de persistência
 
-Antes de executar o projeto, certifique-se de possuir as seguintes ferramentas instaladas:
+O Corporate Chat utiliza dois bancos de dados, cada um responsável por um tipo de informação.
 
-- Node.js
-- npm
-- Docker Desktop
-- Git
+```text
+Corporate Chat
+│
+├── PostgreSQL
+│   ├── usuários
+│   ├── solicitações de cadastro
+│   ├── autenticação
+│   ├── dados estruturados
+│   ├── migrations
+│   └── seeders
+│
+└── MongoDB
+    ├── conversations
+    ├── conversation_members
+    ├── messages
+    ├── índices
+    └── seeds de desenvolvimento
+```
 
-Opcionalmente:
-
-- DBeaver para administração do PostgreSQL;
-- MongoDB Compass para administração do MongoDB.
+Essa separação permite utilizar um banco relacional para informações que exigem maior integridade estrutural e um banco orientado a documentos para o domínio de conversas e mensagens.
 
 ---
 
-## Estrutura básica do projeto
+# Pré-requisitos
+
+Antes de executar o projeto, instale:
+
+- Git
+- Node.js
+- npm
+- Docker Desktop
+
+Ferramentas opcionais para inspeção dos bancos:
+
+- DBeaver
+- pgAdmin
+- MongoDB Compass
+
+> **Importante:** DBeaver, pgAdmin e MongoDB Compass **não são necessários para criar a estrutura do ambiente**.  
+> A partir da PER-05, migrations, seeders e índices devem ser criados automaticamente pelos scripts do projeto.
+
+---
+
+# Estrutura do projeto
+
+A estrutura pode evoluir conforme novas funcionalidades forem implementadas, mas a organização principal de persistência é:
 
 ```text
 corporate-chat/
@@ -63,18 +105,25 @@ corporate-chat/
 │   │
 │   ├── database/
 │   │   ├── mongodb/
-│   │   │   └── seeds/
+│   │   │   ├── seeds/
+│   │   │   ├── health-test.js
+│   │   │   ├── smoke-test.js
+│   │   │   └── sync-indexes.js
 │   │   │
 │   │   └── postgres/
 │   │       ├── migrations/
-│   │       └── seeds/
+│   │       ├── seeders/
+│   │       └── health-test.js
+│   │
+│   ├── scripts/
+│   │   ├── sync-dev.js
+│   │   └── fresh-dev.js
 │   │
 │   ├── src/
 │   │   ├── config/
 │   │   │   └── db/
 │   │   │       ├── mongodb.js
 │   │   │       └── postgres.js
-│   │   │
 │   │   ├── controllers/
 │   │   ├── models/
 │   │   │   ├── mongodb/
@@ -88,246 +137,420 @@ corporate-chat/
 │   ├── package.json
 │   └── package-lock.json
 │
-│
 ├── .gitignore
 ├── docker-compose.yml
 └── README.md
+```
 
-Descrição das principais pastas
-backend/ — responsável pela API, regras de negócio e acesso aos bancos.
-backend/database/ — estrutura destinada às migrations e seeds.
-backend/src/config/db/ — configuração das conexões com PostgreSQL e MongoDB.
-backend/src/controllers/ — controladores da aplicação.
-backend/src/models/ — modelos relacionados aos bancos de dados.
-backend/src/routes/ — definição das rotas da API.
-backend/src/services/ — serviços e regras de negócio.
-backend/src/server.js — inicialização do servidor.
-docker-compose.yml — configuração dos containers PostgreSQL e MongoDB.
-README.md — documentação principal do projeto.
-
-````
 ---
 
 # Instalação
 
 ## 1. Clonar o repositório
 
-Clone o projeto utilizando o Git:
-
 ```bash
 git clone https://github.com/GustavWebCriador/corporate-chat.git
-```
-
-Acesse a pasta:
-
-```bash
 cd corporate-chat
 ```
 
----
-
 ## 2. Instalar as dependências do backend
-
-Entre na pasta do backend:
 
 ```bash
 cd backend
-```
-
-Instale as dependências:
-
-```bash
 npm install
-```
-
-Após a instalação, retorne para a raiz do projeto:
-
-```bash
-cd ..
 ```
 
 ---
 
 # Configuração das variáveis de ambiente
 
-Na pasta:
+O projeto utiliza o arquivo:
 
 ```text
-corporate-chat/backend/
+backend/.env
 ```
 
-crie um arquivo chamado:
+Copie o arquivo de exemplo:
 
-```text
-.env
+### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-Exemplo de configuração para ambiente de desenvolvimento:
+### Linux/macOS
+
+```bash
+cp .env.example .env
+```
+
+Depois, configure os valores necessários.
+
+Exemplo:
 
 ```env
 NODE_ENV=development
-
 PORT=3000
 
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5433
 POSTGRES_USER=<seu_usuario_postgres>
 POSTGRES_PASSWORD=<sua_senha_postgres>
-POSTGRES_DB=
+POSTGRES_DB=<seu_banco_postgres>
 
 MONGO_HOST=127.0.0.1
 MONGO_PORT=27017
 MONGO_USER=<seu_usuario_mongodb>
 MONGO_PASSWORD=<sua_senha_mongodb>
-MONGO_DB=
+MONGO_DB=<seu_banco_mongodb>
 
-JWT_SECRET=SUBSTITUA_POR_UMA_CHAVE_SECRETA_SEGURA
+JWT_SECRET=<sua_chave_secreta>
 ```
 
-> **Importante:** o arquivo `.env` contém informações sensíveis e não deve ser enviado ao repositório Git.
+> Nunca envie o arquivo `.env` para o repositório.
 
-Adicione ao `.gitignore`:
+O `.gitignore` deve conter, no mínimo:
 
 ```gitignore
 .env
 node_modules/
 ```
 
-Para projetos compartilhados entre desenvolvedores, recomenda-se disponibilizar um arquivo `.env.example` sem senhas reais.
-
 ---
 
-# Configuração dos bancos de dados
+# Docker
 
-Os bancos PostgreSQL e MongoDB são executados através do Docker Compose.
+Os bancos PostgreSQL e MongoDB são executados por meio do Docker Compose.
 
-O arquivo `docker-compose.yml` deve estar localizado na raiz do projeto.
+Serviços utilizados:
 
-```
-services:
-
-  postgres:
-    image: postgres:16
-    container_name: corporate_chat_postgres_container
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-
-    ports:
-      - "5433:5432"
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-    healthcheck:
-      test:
-      [
-      "CMD-SHELL",
-      "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
-      ]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  mongodb:
-    image: mongo:8
-    container_name: corporate_chat_mongodb_container
-    restart: unless-stopped
-
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DB}
-
-    ports:
-      - "27017:27017"
-
-    volumes:
-      - mongodb_data:/data/db
-
-volumes:
-  postgres_data:
-  mongodb_data:
-
+```text
+PostgreSQL 16
+MongoDB 8
 ```
 
----
-
-# Inicialização do ambiente
-
-## 1. Iniciar o Docker Desktop
-
-Antes de iniciar os bancos de dados, certifique-se de que o Docker Desktop esteja em execução.
-
----
-
-## 2. Validar o Docker Compose
-
-Na raiz do projeto execute:
+Para validar a configuração:
 
 ```bash
 docker compose config
 ```
 
-Caso não sejam apresentados erros, prossiga para a inicialização.
-
----
-
-## 3. Inicializar PostgreSQL e MongoDB
-
-Execute:
-
-```bash
-docker compose up -d
-```
-
-O parâmetro `-d` inicia os containers em segundo plano.
-
----
-
-## 4. Verificar os containers
-
-Execute:
+Para visualizar os containers:
 
 ```bash
 docker compose ps
 ```
 
-O resultado deverá apresentar os dois containers em execução:
+---
 
-```text
-corporate_chat_postgres_container
-corporate_chat_mongodb_container
+# Sincronização do ambiente de desenvolvimento
+
+Depois de realizar um `git pull`, execute:
+
+```bash
+cd backend
+npm install
+npm run env:sync
 ```
 
-O PostgreSQL deverá apresentar o status:
+O comando `env:sync` é o fluxo padrão para atualizar um ambiente de desenvolvimento já existente.
+
+Ele deve executar automaticamente:
+
+1. Inicialização dos containers Docker;
+2. Aguardo do PostgreSQL e MongoDB ficarem saudáveis;
+3. Execução das migrations pendentes do PostgreSQL;
+4. Execução dos seeders de desenvolvimento necessários;
+5. Sincronização dos índices do MongoDB;
+6. Validação das conexões com PostgreSQL e MongoDB;
+7. Exibição do status das migrations.
 
 ```text
-healthy
+git pull
+   │
+   ▼
+npm install
+   │
+   ▼
+npm run env:sync
+   │
+   ├── Docker Compose
+   ├── PostgreSQL
+   ├── MongoDB
+   ├── Migrations
+   ├── Seeders
+   ├── Índices MongoDB
+   ├── Health checks
+   └── Status das migrations
 ```
+
+## Característica do `env:sync`
+
+O comando é **não destrutivo**.
+
+Ele deve sincronizar o ambiente sem remover os volumes locais e sem apagar dados já existentes.
+
+---
+
+# Reconstrução completa do ambiente
+
+Para recriar os bancos locais do zero:
+
+```bash
+cd backend
+npm run env:fresh -- --confirm
+```
+
+O `env:fresh` deve:
+
+1. Validar a confirmação explícita `--confirm`;
+2. Remover os containers do ambiente;
+3. Remover os volumes locais do PostgreSQL e MongoDB;
+4. Subir novamente os serviços;
+5. Aguardar os bancos ficarem disponíveis;
+6. Executar todas as migrations do PostgreSQL;
+7. Executar os seeders de desenvolvimento;
+8. Criar/sincronizar os índices do MongoDB;
+9. Executar os seeds do MongoDB;
+10. Validar o funcionamento dos dois bancos;
+11. Exibir o status final das migrations.
+
+> [!WARNING]
+> `npm run env:fresh -- --confirm` remove os dados locais do PostgreSQL e MongoDB.  
+> Utilize somente quando realmente desejar reconstruir o ambiente do zero.
+
+O parâmetro `--confirm` existe como proteção contra exclusões acidentais.
+
+---
+
+# PER-05 — Ambiente reproduzível
+
+A PER-05 consolida o ambiente de persistência para que qualquer integrante da equipe consiga reproduzir a mesma estrutura de banco sem criação manual.
+
+Os principais pontos da entrega são:
+
+- migrations versionadas no PostgreSQL;
+- controle de migrations pelo `SequelizeMeta`;
+- seeders de desenvolvimento;
+- controle de seeders pelo `SequelizeData`;
+- schemas e índices do MongoDB reproduzíveis;
+- seeds do MongoDB;
+- testes de saúde dos dois bancos;
+- smoke tests;
+- script de sincronização sem perda de dados;
+- script de reconstrução completa com confirmação;
+- documentação do fluxo no README.
+
+## Scripts relacionados à PER-05
+
+A configuração do `package.json` deve disponibilizar scripts equivalentes a:
+
+```text
+db:migrate
+db:migrate:status
+db:migrate:undo
+
+db:seed
+db:seed:undo
+
+postgres:test
+
+mongo:indexes
+mongo:seed
+mongo:health
+mongo:test
+
+env:sync
+env:fresh
+
+seed:dev
+verify:dev-seed
+
+test:integrity
+test
+```
+
+Para verificar os scripts disponíveis na versão atual:
+
+```bash
+npm run
+```
+
+---
+
+# PostgreSQL
+
+O PostgreSQL utiliza **Sequelize + Sequelize CLI** para controle da estrutura.
+
+## Executar migrations
+
+```bash
+npm run db:migrate
+```
+
+## Verificar status das migrations
+
+```bash
+npm run db:migrate:status
+```
+
+O resultado permite identificar migrations:
+
+```text
+up
+down
+```
+
+- `up`: migration já executada;
+- `down`: migration ainda pendente.
+
+## Executar seeders
+
+```bash
+npm run db:seed
+```
+
+> As migrations devem ser executadas antes dos seeders.
+
+Fluxo correto:
+
+```text
+db:migrate:status
+        │
+        ▼
+db:migrate
+        │
+        ▼
+db:seed
+```
+
+## Tabelas de controle do Sequelize
+
+O Sequelize utiliza tabelas internas para registrar o que já foi executado.
+
+### Migrations
+
+```text
+SequelizeMeta
+```
+
+### Seeders
+
+```text
+SequelizeData
+```
+
+Essas tabelas permitem que os scripts sejam executados repetidamente sem reaplicar operações já registradas.
+
+---
+
+# Estruturas PostgreSQL já cobertas pelo ambiente
+
+A reprodução do ambiente deve gerar as estruturas previstas pelas migrations do projeto, incluindo, conforme a versão atual:
+
+```text
+users
+registration_requests
+constraints
+indexes
+seed users
+migrations
+```
+
+Nenhuma dessas estruturas deve depender de criação manual via DBeaver ou pgAdmin.
+
+---
+
+# MongoDB
+
+O MongoDB armazena o domínio de conversas e mensagens.
+
+Estruturas principais:
+
+```text
+conversations
+conversation_members
+messages
+```
+
+## Sincronizar índices
+
+```bash
+npm run mongo:indexes
+```
+
+## Executar seed de desenvolvimento
+
+```bash
+npm run mongo:seed
+```
+
+## Validar saúde do MongoDB
+
+```bash
+npm run mongo:health
+```
+
+## Executar smoke test
+
+```bash
+npm run mongo:test
+```
+
+A reprodução correta deve garantir:
+
+```text
+conversations
+conversation_members
+messages
+indexes
+seed
+```
+
+---
+
+# Testes de saúde
+
+A PER-05 adiciona validações para garantir que os dois bancos estão acessíveis antes da continuidade do fluxo.
+
+## PostgreSQL
+
+```bash
+npm run postgres:test
+```
+
+## MongoDB
+
+```bash
+npm run mongo:health
+```
+
+ou:
+
+```bash
+npm run mongo:test
+```
+
+Esses testes ajudam a identificar falhas de:
+
+- conexão;
+- credenciais;
+- porta;
+- disponibilidade do container;
+- banco inexistente;
+- configuração incorreta do ambiente.
 
 ---
 
 # Executando o backend
 
-Acesse a pasta:
-
-```bash
-cd backend
-```
-
-Execute:
+Com o ambiente sincronizado:
 
 ```bash
 npm run dev
 ```
 
-O Nodemon será iniciado.
-
-Quando todas as conexões estiverem funcionando corretamente, o terminal deverá apresentar:
+Quando as conexões estiverem corretas, o backend deverá apresentar mensagens equivalentes a:
 
 ```text
 [DATABASE] Connecting...
@@ -341,13 +564,13 @@ Quando todas as conexões estiverem funcionando corretamente, o terminal deverá
 
 # Testando a API
 
-Com o servidor em execução, acesse:
+Com o backend em execução:
 
 ```text
 http://localhost:3000
 ```
 
-A API deverá retornar:
+Retorno esperado:
 
 ```json
 {
@@ -356,22 +579,199 @@ A API deverá retornar:
 }
 ```
 
-Isso confirma que o backend está ativo.
+---
+
+# Teste oficial da PER-05
+
+O teste principal da PER-05 deve ser realizado preferencialmente em uma máquina que ainda não possua o ambiente configurado pelo responsável pela implementação.
+
+## 1. Clonar o projeto
+
+```bash
+git clone https://github.com/GustavWebCriador/corporate-chat.git
+cd corporate-chat
+cd backend
+```
+
+## 2. Instalar dependências
+
+```bash
+npm install
+```
+
+## 3. Criar o `.env`
+
+Copie:
+
+```text
+.env.example
+```
+
+para:
+
+```text
+.env
+```
+
+Configure as variáveis necessárias.
+
+## 4. Reconstruir o ambiente
+
+```bash
+npm run env:fresh -- --confirm
+```
+
+Durante esse teste, **não utilizar DBeaver, pgAdmin ou MongoDB Compass para criar tabelas, collections, índices ou dados manualmente**.
+
+O objetivo é comprovar que o repositório é suficiente para reproduzir todo o ambiente.
+
+## Resultado esperado
+
+### PostgreSQL
+
+```text
+users                    ✅
+registration_requests    ✅
+constraints              ✅
+indexes                   ✅
+seed users                ✅
+migrations                ✅
+```
+
+### MongoDB
+
+```text
+conversations             ✅
+conversation_members      ✅
+messages                  ✅
+indexes                   ✅
+seed                      ✅
+```
+
+Se a execução for concluída dessa forma, o projeto possui um:
+
+# Ambiente de desenvolvimento reproduzível
 
 ---
 
-# Testando o PostgreSQL
+# Fluxo recomendado para a equipe
 
-Para acessar diretamente o PostgreSQL através do container:
+## Primeira instalação
 
 ```bash
-docker exec -it <nome_do_container_postgres> psql -U <seu_usuario_postgres> -d <seu_banco_postgres>
+git clone https://github.com/GustavWebCriador/corporate-chat.git
+cd corporate-chat/backend
+npm install
 ```
 
-Após conectar, é possível verificar o banco atual:
+Criar e configurar:
+
+```text
+.env
+```
+
+Depois:
+
+```bash
+npm run env:fresh -- --confirm
+npm run dev
+```
+
+## Atualização diária
+
+Depois de receber alterações do repositório:
+
+```bash
+git pull
+cd backend
+npm install
+npm run env:sync
+npm run dev
+```
+
+---
+
+# Comandos úteis
+
+## Ver containers
+
+```bash
+docker compose ps
+```
+
+## Logs de todos os serviços
+
+Na raiz do projeto:
+
+```bash
+docker compose logs
+```
+
+## Logs do PostgreSQL
+
+```bash
+docker compose logs postgres
+```
+
+## Logs do MongoDB
+
+```bash
+docker compose logs mongodb
+```
+
+## Acompanhar logs
+
+```bash
+docker compose logs -f
+```
+
+## Parar os containers preservando dados
+
+```bash
+docker compose down
+```
+
+## Remover containers e volumes manualmente
+
+```bash
+docker compose down -v
+```
+
+> Esse comando apaga os dados locais armazenados nos volumes.
+
+Para a reconstrução controlada do ambiente, prefira:
+
+```bash
+npm run env:fresh -- --confirm
+```
+
+---
+
+# Acesso manual ao PostgreSQL
+
+Para inspeção técnica:
+
+```bash
+docker exec -it corporate_chat_postgres_container psql -U <usuario> -d <banco>
+```
+
+Dentro do PostgreSQL:
 
 ```sql
 SELECT current_database();
+```
+
+No `psql`, alguns comandos úteis:
+
+```text
+\dt
+\d users
+```
+
+Para verificar migrations executadas:
+
+```sql
+SELECT * FROM "SequelizeMeta";
 ```
 
 Para sair:
@@ -384,133 +784,77 @@ Para sair:
 
 # PostgreSQL no DBeaver
 
-Para conectar ao banco através do DBeaver, utilize:
+Uso opcional para inspeção:
 
 ```text
 Host: 127.0.0.1
 Porta: 5433
-Banco: 
-Usuário: <seu_usuario_postgres>
-Senha: <sua_senha_postgres>
+Banco: <POSTGRES_DB>
+Usuário: <POSTGRES_USER>
+Senha: <POSTGRES_PASSWORD>
 ```
 
-> A porta externa pode ser alterada no `docker-compose.yml` caso exista outro PostgreSQL instalado na máquina.
+A porta pode ser alterada no `docker-compose.yml` caso exista outro PostgreSQL utilizando a mesma porta na máquina.
 
 ---
 
-# Testando o MongoDB
+# Acesso manual ao MongoDB
 
-Para acessar o MongoDB diretamente pelo container:
+Para inspeção técnica pelo container:
 
 ```bash
-docker exec -it <nome_do_container_mongodb> mongosh -u <seu_usuario_mongodb> -p <sua_senha_mongodb> --authenticationDatabase admin
+docker exec -it corporate_chat_mongodb_container mongosh \
+  -u <usuario> \
+  -p <senha> \
+  --authenticationDatabase admin
 ```
 
-Após conectar:
+Teste:
 
 ```javascript
 db.runCommand({ ping: 1 })
 ```
 
-O retorno esperado é:
+Retorno esperado:
 
 ```javascript
 { ok: 1 }
-```
-
-Para sair:
-
-```javascript
-exit
-```
-
----
-
-# Parando os containers
-
-Para parar os serviços:
-
-```bash
-docker compose down
-```
-
-Os dados armazenados nos volumes serão preservados.
-
-Para iniciar novamente:
-
-```bash
-docker compose up -d
-```
-
----
-
-# Atenção ao uso de volumes
-
-O comando:
-
-```bash
-docker compose down -v
-```
-
-remove também os volumes dos bancos de dados.
-
-Isso significa que os dados armazenados no PostgreSQL e MongoDB serão apagados.
-
-Utilize esse comando somente quando realmente desejar recriar os bancos do zero.
-
-Durante o desenvolvimento normal, utilize:
-
-```bash
-docker compose down
-```
-
----
-
-# Logs dos containers
-
-Para visualizar os logs de todos os serviços:
-
-```bash
-docker compose logs
-```
-
-PostgreSQL:
-
-```bash
-docker compose logs postgres
-```
-
-MongoDB:
-
-```bash
-docker compose logs mongodb
-```
-
-Para acompanhar os logs continuamente:
-
-```bash
-docker compose logs -f
 ```
 
 ---
 
 # Problemas comuns
 
+## Docker Desktop não está em execução
+
+Verifique se o Docker Desktop foi iniciado antes de executar:
+
+```bash
+npm run env:sync
+```
+
+ou:
+
+```bash
+npm run env:fresh -- --confirm
+```
+
+---
+
 ## PostgreSQL — `ECONNREFUSED`
 
 Exemplo:
 
 ```text
-connect ECONNREFUSED 127.0.0.1:5432
+connect ECONNREFUSED 127.0.0.1:5433
 ```
 
-Verifique se:
-
-* o container está em execução;
-* a porta configurada no `.env` corresponde à porta publicada pelo Docker;
-* não existe outro PostgreSQL utilizando a mesma porta.
-
 Verifique:
+
+- se o container está ativo;
+- se o healthcheck terminou;
+- se a porta no `.env` corresponde à porta publicada pelo Docker;
+- se outro PostgreSQL já está utilizando a porta.
 
 ```bash
 docker compose ps
@@ -519,12 +863,12 @@ docker compose ps
 No Windows:
 
 ```powershell
-Get-NetTCPConnection -LocalPort 5432 -State Listen
+Get-NetTCPConnection -LocalPort 5433 -State Listen
 ```
 
 ---
 
-## PostgreSQL — erro `28P01`
+## PostgreSQL — `28P01`
 
 Exemplo:
 
@@ -532,7 +876,31 @@ Exemplo:
 password authentication failed
 ```
 
-Verifique se usuário e senha do `.env` correspondem aos definidos no `docker-compose.yml`.
+Verifique se:
+
+```text
+POSTGRES_USER
+POSTGRES_PASSWORD
+POSTGRES_DB
+```
+
+correspondem às configurações utilizadas pelo Docker.
+
+---
+
+## Seeder retorna `relation "users" does not exist`
+
+Isso indica que os seeders foram executados antes da migration responsável pela criação da tabela.
+
+Execute:
+
+```bash
+npm run db:migrate:status
+npm run db:migrate
+npm run db:seed
+```
+
+No fluxo normal da PER-05, `env:sync` e `env:fresh` devem garantir essa ordem automaticamente.
 
 ---
 
@@ -540,129 +908,682 @@ Verifique se usuário e senha do `.env` correspondem aos definidos no `docker-co
 
 Confira:
 
-```env
-MONGO_USER=<seu_usuario_mongodb>
-MONGO_PASSWORD=<sua_senha_mongodb>
+```text
+MONGO_USER
+MONGO_PASSWORD
+MONGO_DB
 ```
 
-A conexão utiliza:
+A autenticação administrativa criada pelo Docker normalmente utiliza:
 
 ```text
 authSource=admin
 ```
 
-porque o usuário administrativo é criado através das variáveis:
-
-```text
-MONGO_INITDB_ROOT_USERNAME
-MONGO_INITDB_ROOT_PASSWORD
-```
-
 ---
 
-## MongoDB — `authsource is not supported`
+## MongoDB — erro relacionado a `authSource`
 
-Certifique-se de que a URI esteja formatada corretamente:
+Confira a URI de conexão e certifique-se de que o parâmetro esteja corretamente formatado:
 
 ```text
 ?authSource=admin
 ```
 
-Não utilize espaços entre `?` e `authSource`.
+---
+
+## Índices duplicados no MongoDB
+
+Caso um índice antigo tenha sido criado com configuração diferente da versão atual, inspecione os índices existentes antes de alterar dados manualmente.
+
+O fluxo normal deve utilizar:
+
+```bash
+npm run mongo:indexes
+```
+
+para manter os índices definidos pelo projeto sincronizados.
 
 ---
 
-# Reinicialização do ambiente
+# Boas práticas do projeto
 
-Para reiniciar o ambiente mantendo os dados:
+- Não criar tabelas manualmente no PostgreSQL;
+- Não criar collections ou índices manualmente como requisito para o sistema funcionar;
+- Toda alteração estrutural do PostgreSQL deve possuir migration;
+- Dados iniciais de desenvolvimento devem utilizar seeders;
+- Alterações de índices do MongoDB devem ser versionadas no código;
+- Não versionar `.env`;
+- Não versionar credenciais reais;
+- Executar `npm install` após alterações de dependências;
+- Executar `npm run env:sync` após atualizar a branch;
+- Utilizar `env:fresh` somente quando uma reconstrução completa for necessária.
 
-```bash
-docker compose down
-docker compose up -d
+---
+
+# Critério de ambiente reproduzível
+
+Um ambiente pode ser considerado reproduzível quando um integrante da equipe consegue:
+
+```text
+1. clonar o repositório
+2. instalar as dependências
+3. configurar o .env
+4. executar um único fluxo automatizado
+5. obter PostgreSQL e MongoDB completamente estruturados
+6. iniciar a aplicação
 ```
 
-Depois:
+sem precisar:
+
+```text
+- criar banco manualmente no DBeaver;
+- criar tabelas manualmente no pgAdmin;
+- criar collections ou índices pelo MongoDB Compass;
+- executar SQL manual para preparar a aplicação;
+- copiar estruturas de banco de outra máquina.
+```
+
+Esse ambiente reproduzível foi consolidado pela **PER-05** e evoluído pelas **PER-06 e PER-07** com massa de desenvolvimento integrada e testes automatizados de integridade.
+
+---
+
+
+# PER-06 — Massa de dados de desenvolvimento integrada
+
+A PER-06 consolida uma massa de dados de desenvolvimento previsível, integrada e reproduzível entre PostgreSQL e MongoDB.
+
+O objetivo é permitir que qualquer integrante da equipe tenha dados coerentes para desenvolvimento e testes sem precisar cadastrar registros manualmente.
+
+## Estrutura da PER-06
+
+Os dados compartilhados entre os dois bancos utilizam identificadores determinísticos.
+
+Arquivo de fixtures compartilhadas:
+
+```text
+backend/database/shared/dev-fixtures.js
+```
+
+Esse arquivo centraliza os identificadores utilizados pela massa de desenvolvimento, evitando divergências entre PostgreSQL e MongoDB.
+
+Entre os principais pontos da PER-06 estão:
+
+- usuários de desenvolvimento no PostgreSQL;
+- solicitações de cadastro no PostgreSQL;
+- conversas privadas e em grupo no MongoDB;
+- participantes das conversas;
+- mensagens de desenvolvimento;
+- UUIDs compartilhados entre os bancos;
+- seed idempotente;
+- verificação automática da massa criada.
+
+## Massa de dados esperada
+
+Após a execução completa do seed de desenvolvimento, o ambiente deve possuir:
+
+### PostgreSQL
+
+```text
+4 usuários
+3 solicitações de cadastro
+```
+
+### MongoDB
+
+```text
+2 conversas
+6 participantes
+5 mensagens
+```
+
+As mensagens incluem:
+
+```text
+2 mensagens de conversa privada
+3 mensagens de conversa em grupo
+```
+
+A massa é criada apenas para ambiente de desenvolvimento.
+
+---
+
+## Seed integrado de desenvolvimento
+
+Para criar ou atualizar a massa de desenvolvimento:
 
 ```bash
 cd backend
-npm run dev
+npm run seed:dev
 ```
 
----
-
-# Fluxo de inicialização
-
-O ambiente deve seguir esta sequência:
+O script:
 
 ```text
-Docker Desktop
-      │
-      ▼
-Docker Compose
-      │
-      ├── PostgreSQL
-      │
-      └── MongoDB
-              │
-              ▼
-         Backend Node.js
-              │
-              ├── PostgreSQL
-              ├── MongoDB
-              └── API Express
+backend/scripts/seed-dev.js
 ```
 
----
+orquestra o processo de seed dos dois bancos.
 
-# Status atual da infraestrutura
-
-O ambiente de desenvolvimento está preparado para utilizar:
+Fluxo esperado:
 
 ```text
-Backend
-└── Node.js + Express
-      │
-      ├── PostgreSQL
-      │    └── Dados estruturados
-      │
-      └── MongoDB
-           └── Mensagens e histórico
+npm run seed:dev
+        │
+        ├── PostgreSQL
+        │      └── Sequelize seeders
+        │
+        ├── MongoDB
+        │      └── development seed
+        │
+        └── Verificação da massa
+               └── verify-dev-seed.js
 ```
 
-A próxima etapa do desenvolvimento consiste na implementação da estrutura de dados, autenticação, usuários, conversas, mensagens e comunicação em tempo real.
+O processo inclui:
+
+1. execução dos seeders do PostgreSQL;
+2. conexão com o MongoDB;
+3. criação/atualização dos documentos de desenvolvimento;
+4. preservação da idempotência;
+5. validação dos dados criados.
 
 ---
 
-## Corporate Chat
+## Verificação da massa
 
-Projeto acadêmico desenvolvido para proporcionar uma solução de comunicação corporativa organizada, segura e preparada para evolução futura.
+Para validar a massa de desenvolvimento:
 
-## Credenciais de desenvolvimento
+```bash
+npm run verify:dev-seed
+```
 
-As credenciais de acesso aos bancos de dados e demais serviços do ambiente de desenvolvimento **não são versionadas no repositório**.
+O script responsável é:
 
-Para obter as credenciais necessárias para execução local do projeto, entre em contato com o responsável pelo ambiente de persistência e desenvolvimento:
+```text
+backend/scripts/verify-dev-seed.js
+```
 
-**Gustavo Medeiros**
+A verificação confirma se os registros esperados estão presentes nos dois bancos e se os identificadores compartilhados permanecem coerentes.
 
-Utilize o arquivo `.env.example` como referência para configurar o seu arquivo `.env`.
+---
 
+## Idempotência
+
+Uma exigência central da PER-06 é permitir múltiplas execuções do seed sem gerar dados duplicados.
+
+O MongoDB utiliza operações equivalentes a `upsert`, evitando recriação desnecessária dos mesmos documentos.
+
+O seed não deve depender de:
+
+```text
+deleteMany()
+```
+
+como estratégia normal para garantir consistência.
+
+### Teste de idempotência
+
+Execute três vezes:
+
+```bash
+npm run mongo:seed
+npm run mongo:seed
+npm run mongo:seed
+```
+
+O resultado deve permanecer estável:
+
+```text
+conversations             2
+conversation_members      6
+messages                  5
+```
+
+Não devem ocorrer erros:
+
+```text
+E11000 duplicate key
+```
+
+Esse comportamento garante que o seed possa ser executado repetidamente durante o desenvolvimento.
+
+---
+
+## Integração lógica PostgreSQL ↔ MongoDB
+
+Os documentos do MongoDB que representam usuários utilizam os mesmos UUIDs existentes no PostgreSQL.
+
+Exemplo conceitual:
+
+```text
+PostgreSQL
+users.id (UUID)
+     │
+     └───────────────┐
+                     ▼
+MongoDB
+conversation_members.user_id
+messages.sender_id
+```
+
+Não existe foreign key física entre PostgreSQL e MongoDB.
+
+A integridade entre os bancos é mantida pela aplicação, pelas fixtures compartilhadas, pelos seeds e pelos testes automatizados.
+
+---
+
+## Proteção de ambiente
+
+Os seeds de desenvolvimento devem ser executados apenas quando:
 
 ```env
 NODE_ENV=development
-PORT=3000
+```
 
-POSTGRES_HOST=127.0.0.1
-POSTGRES_PORT=5433
-POSTGRES_USER=
-POSTGRES_PASSWORD=
-POSTGRES_DB=
+A massa de desenvolvimento não deve ser carregada automaticamente em produção.
 
-MONGO_HOST=127.0.0.1
-MONGO_PORT=27017
-MONGO_USER=
-MONGO_PASSWORD=
-MONGO_DB=
+---
 
-JWT_SECRET=
-````
+# PER-07 — Testes automatizados de integridade da persistência
+
+A PER-07 adiciona uma suíte automatizada destinada a validar as regras de integridade implementadas no PostgreSQL e MongoDB.
+
+Os testes utilizam o módulo nativo:
+
+```text
+node:test
+```
+
+e foram organizados para validar tanto cenários positivos quanto cenários negativos.
+
+Estrutura prevista:
+
+```text
+backend/database/tests/integrity/
+├── postgres-integrity.test.js
+└── mongodb-integrity.test.js
+```
+
+O orquestrador da suíte é:
+
+```text
+backend/scripts/test-integrity.js
+```
+
+---
+
+## Executando os testes
+
+Antes dos testes, sincronize o ambiente:
+
+```bash
+cd backend
+npm run env:sync
+```
+
+Depois execute:
+
+```bash
+npm run test:integrity
+```
+
+ou:
+
+```bash
+npm test
+```
+
+O script `npm test` utiliza a suíte de integridade como teste principal da persistência nesta etapa do projeto.
+
+---
+
+## O que a PER-07 valida
+
+### PostgreSQL
+
+Os testes verificam, entre outros:
+
+- constraints;
+- unicidade de e-mail;
+- foreign keys;
+- estados válidos de usuários;
+- estados válidos de solicitações de cadastro;
+- regras condicionais para `APPROVED`;
+- regras condicionais para `REJECTED`;
+- consistência dos relacionamentos;
+- comportamento esperado das migrations e estruturas criadas.
+
+### MongoDB
+
+Os testes verificam:
+
+- schemas Mongoose;
+- validações dos documentos;
+- unicidade de conversas privadas;
+- unicidade de participantes;
+- idempotência de mensagens;
+- limite de 1.000 caracteres;
+- consistência de identificadores;
+- índices definidos para as collections.
+
+### Integração lógica
+
+A suíte também valida regras relacionadas à integração:
+
+```text
+PostgreSQL ↔ MongoDB
+```
+
+principalmente nos campos utilizados para representar usuários no domínio de conversas e mensagens.
+
+---
+
+## Isolamento dos testes
+
+Os testes PostgreSQL utilizam transações e rollback quando aplicável.
+
+Fluxo conceitual:
+
+```text
+BEGIN
+  │
+  ├── cria dados do teste
+  ├── executa validações
+  └── verifica resultado
+  │
+ROLLBACK
+```
+
+Isso evita contaminar a massa padrão de desenvolvimento.
+
+No MongoDB, os documentos utilizados pelos testes são identificados especificamente para a suíte e removidos de forma controlada quando necessário.
+
+O objetivo é garantir:
+
+```text
+teste executado
+      │
+      ▼
+resultado validado
+      │
+      ▼
+ambiente preservado
+```
+
+---
+
+## Cenários positivos e negativos
+
+A PER-07 não testa apenas operações válidas.
+
+Também são executados cenários que **devem falhar** quando uma regra de integridade é violada.
+
+Exemplos:
+
+```text
+e-mail duplicado                     → deve falhar
+foreign key inválida                 → deve falhar
+status não permitido                 → deve falhar
+APPROVED sem dados obrigatórios      → deve falhar
+REJECTED sem motivo obrigatório      → deve falhar
+participante duplicado               → deve falhar
+mensagem acima do limite             → deve falhar
+```
+
+Isso comprova que as regras do modelo de dados não existem apenas na documentação, mas estão efetivamente protegidas no banco e na aplicação.
+
+---
+
+## Fluxo de validação da persistência
+
+Com PER-05, PER-06 e PER-07, o fluxo recomendado passa a ser:
+
+```text
+git pull
+   │
+   ▼
+npm install
+   │
+   ▼
+npm run env:sync
+   │
+   ├── containers
+   ├── migrations
+   ├── seeders
+   ├── índices
+   └── health checks
+   │
+   ▼
+npm run seed:dev
+   │
+   ├── massa PostgreSQL
+   ├── massa MongoDB
+   └── verificação
+   │
+   ▼
+npm run test:integrity
+   │
+   ├── PostgreSQL
+   ├── MongoDB
+   └── integração lógica
+   │
+   ▼
+ambiente validado
+```
+
+---
+
+## Critério de conclusão até PER-07
+
+A camada de persistência pode ser considerada validada nesta etapa quando:
+
+```text
+PER-05
+✅ ambiente reproduzível
+✅ migrations automatizadas
+✅ seeders automatizados
+✅ índices sincronizados
+✅ env:sync
+✅ env:fresh
+
+PER-06
+✅ fixtures compartilhadas
+✅ seed integrado PostgreSQL + MongoDB
+✅ IDs determinísticos
+✅ seed idempotente
+✅ verificação da massa
+✅ dados coerentes entre os bancos
+
+PER-07
+✅ testes PostgreSQL
+✅ testes MongoDB
+✅ testes positivos
+✅ testes negativos
+✅ isolamento da suíte
+✅ validação de integridade entre os bancos
+```
+
+---
+
+# Status atual
+
+Até a **PER-07**, o Corporate Chat possui uma base de persistência reproduzível, populável e testável automaticamente.
+
+```text
+Corporate Chat
+│
+├── Docker Compose
+│   ├── PostgreSQL 16
+│   └── MongoDB 8
+│
+├── PostgreSQL
+│   ├── migrations
+│   ├── seeders
+│   ├── constraints
+│   ├── indexes
+│   ├── health test
+│   └── integrity tests
+│
+├── MongoDB
+│   ├── schemas
+│   ├── indexes
+│   ├── development seed
+│   ├── health test
+│   ├── smoke test
+│   └── integrity tests
+│
+├── Massa de desenvolvimento
+│   ├── shared fixtures
+│   ├── UUIDs determinísticos
+│   ├── seed integrado
+│   ├── idempotência
+│   └── verificação automática
+│
+└── Automação
+    ├── env:sync
+    ├── env:fresh
+    ├── seed:dev
+    ├── verify:dev-seed
+    └── test:integrity
+```
+
+A camada de persistência deixa de depender apenas da criação automática da estrutura e passa também a possuir dados previsíveis e testes capazes de comprovar as principais regras de integridade.
+
+## Evolução do Product Backlog
+
+A evolução da camada de persistência do **Corporate Chat** foi organizada através das PERs do Product Backlog.
+
+Até o momento, as **PER-01 até PER-07** foram implementadas, formando a base da infraestrutura, modelagem, integridade, reprodução do ambiente e testes automatizados da persistência.
+
+| PER | Entrega principal | Prioridade | Resultado esperado | Situação |
+|---|---|---:|---|---|
+| PER-01 | Preparar ambiente de persistência | P0 | PostgreSQL e MongoDB executando em containers Docker | ✅ Implementada |
+| PER-02 | Implementar schema PostgreSQL | P0 | Tabelas `users` e `registration_requests` implementadas | ✅ Implementada |
+| PER-03 | Implementar models MongoDB | P0 | Collections `conversations`, `conversation_members` e `messages` implementadas | ✅ Implementada |
+| PER-04 | Implementar constraints e índices | P0 | Regras de integridade e índices de desempenho implementados | ✅ Implementada |
+| PER-05 | Criar migrations e inicialização automatizada | P0 | Ambiente de banco reproduzível através de migrations, seeders e scripts de sincronização | ✅ Implementada |
+| PER-06 | Criar seed de desenvolvimento | P1 | Massa de dados integrada, consistente e idempotente entre PostgreSQL e MongoDB | ✅ Implementada |
+| PER-07 | Validar regras de integridade | P0 | Testes automatizados positivos e negativos para PostgreSQL e MongoDB | ✅ Implementada |
+| PER-08 | Validar integração lógica PostgreSQL ↔ MongoDB | P0 | UUIDs corretamente referenciados entre os dois bancos | 📋 Product Backlog |
+| PER-09 | Validar consultas críticas | P1 | Histórico, conversas e consultas principais funcionando corretamente | 📋 Product Backlog |
+| PER-10 | Documentar execução e evidências | P0 | README, procedimentos e evidências finais da Sprint | 📋 Product Backlog |
+
+### Progresso atual
+
+```text
+PER-01  ✅ Ambiente de persistência
+PER-02  ✅ Schema PostgreSQL
+PER-03  ✅ Models MongoDB
+PER-04  ✅ Constraints e índices
+PER-05  ✅ Ambiente reproduzível
+PER-06  ✅ Seed de desenvolvimento
+PER-07  ✅ Testes de integridade
+PER-08  ⏳ Integração lógica PostgreSQL ↔ MongoDB
+PER-09  ⏳ Consultas críticas
+PER-10  ⏳ Documentação e evidências
+```
+
+Com a conclusão da **PER-07**, o projeto possui atualmente:
+
+- ambiente PostgreSQL e MongoDB executado através de Docker;
+- estrutura PostgreSQL versionada por migrations;
+- models e collections MongoDB definidos no código;
+- constraints e índices de integridade;
+- ambiente de desenvolvimento reproduzível;
+- massa de dados de desenvolvimento idempotente;
+- dados relacionados logicamente entre PostgreSQL e MongoDB;
+- testes automatizados de integridade positivos e negativos.
+
+As próximas etapas concentram-se na validação completa da integração entre os bancos, validação das consultas críticas da aplicação e consolidação das evidências técnicas da Sprint.
+
+---
+
+# Credenciais de desenvolvimento
+
+As credenciais de acesso aos bancos e demais serviços não devem ser versionadas.
+
+Utilize:
+
+```text
+backend/.env.example
+```
+
+como referência para criar:
+
+```text
+backend/.env
+```
+
+Caso sejam necessárias credenciais específicas do ambiente da equipe, solicite-as ao responsável pelo ambiente de persistência e desenvolvimento.
+
+---
+
+
+# Comandos consolidados até PER-07
+
+Na pasta `backend`:
+
+```bash
+# Atualizar ambiente existente
+npm run env:sync
+
+# Reconstruir todo o ambiente local
+npm run env:fresh -- --confirm
+
+# Executar migrations PostgreSQL
+npm run db:migrate
+
+# Verificar migrations
+npm run db:migrate:status
+
+# Executar seeders PostgreSQL
+npm run db:seed
+
+# Sincronizar índices MongoDB
+npm run mongo:indexes
+
+# Executar seed MongoDB
+npm run mongo:seed
+
+# Criar/atualizar massa integrada de desenvolvimento
+npm run seed:dev
+
+# Validar a massa de desenvolvimento
+npm run verify:dev-seed
+
+# Executar testes de integridade
+npm run test:integrity
+
+# Executar a suíte padrão de testes
+npm test
+
+# Iniciar API em desenvolvimento
+npm run dev
+```
+
+> Utilize `npm run` para conferir os scripts disponíveis na versão da branch em uso.
+
+---
+
+# Projeto acadêmico
+
+O **Corporate Chat** é um projeto acadêmico desenvolvido para proporcionar uma solução de comunicação corporativa organizada, segura e preparada para evolução futura.
+
+O projeto também tem como objetivo aplicar boas práticas de desenvolvimento de software, incluindo:
+
+- versionamento;
+- arquitetura;
+- persistência híbrida;
+- migrations;
+- seeders;
+- containers;
+- automação do ambiente;
+- documentação técnica;
+- trabalho colaborativo.
+
+---
+
+## Repositório
+
+https://github.com/GustavWebCriador/corporate-chat
