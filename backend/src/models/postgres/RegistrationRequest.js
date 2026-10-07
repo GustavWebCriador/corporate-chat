@@ -20,7 +20,7 @@ class RegistrationRequest extends Model {
                 },
 
                 email: {
-                    type: DataTypes.STRING(50),
+                    type: DataTypes.STRING(150),
                     allowNull: false,
                 },
 
@@ -43,6 +43,7 @@ class RegistrationRequest extends Model {
                 requested_at: {
                     type: DataTypes.DATE,
                     allowNull: false,
+                    defaultValue: DataTypes.NOW,
                 },
 
                 reviewed_at: {

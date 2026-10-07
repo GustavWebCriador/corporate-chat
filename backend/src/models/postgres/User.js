@@ -19,7 +19,7 @@ class User extends Model {
                 },
 
                 email: {
-                    type: DataTypes.STRING(50),
+                    type: DataTypes.STRING(150),
                     allowNull: false,
                     unique: true,
                 },
@@ -32,6 +32,7 @@ class User extends Model {
                 status: {
                     type: DataTypes.STRING(20),
                     allowNull: false,
+                    defaultValue: "ACTIVE",
 
                     validate: {
                         isIn: [

@@ -42,7 +42,7 @@ Relacionar requisitos do Corporate Chat com as estruturas de persistência imple
 | RI | Regra | Implementação | Teste/Evidência |
 |---|---|---|---|
 | RI01 | `user_id` único | PK `users.user_id` | estrutura PostgreSQL |
-| RI02 | e-mail único e máximo de 50 caracteres | `VARCHAR(50)` + UNIQUE | integrity tests |
+| RI02 | e-mail único e máximo de 150 caracteres (DER v1.3) | `VARCHAR(150)` + UNIQUE | integrity tests |
 | RI03 | mensagem pertence a uma conversa | `createMessage()` + `conversation_id` | integration |
 | RI04 | `sender_id` corresponde a membro autorizado | membership `ACTIVE` | integration |
 | RI05 | conteúdo entre 1 e 1.000 caracteres | `Message.js` | Mongo integrity |

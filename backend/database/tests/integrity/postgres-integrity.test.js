@@ -642,3 +642,151 @@ test(
         );
     }
 );
+
+/*
+ * ============================================
+ * PER-02 — ALINHAMENTO AO DER v1.3
+ * ============================================
+ *
+ * 22001 = string_data_right_truncation
+ */
+
+function emailWithLength(length) {
+
+    const domain = "@test.local";
+
+    return (
+        "a".repeat(length - domain.length) +
+        domain
+    );
+}
+
+
+test(
+    "POSTGRES: e-mail com 150 caracteres deve ser aceito em users e registration_requests",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const email =
+                    emailWithLength(150);
+
+                await insertUser(
+                    transaction,
+                    { email }
+                );
+
+                await insertRequest(
+                    transaction,
+                    { email }
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: e-mail com 151 caracteres deve ser rejeitado em users",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                await expectPostgresError(
+                    () =>
+                        insertUser(
+                            transaction,
+                            {
+                                email:
+                                    emailWithLength(151),
+                            }
+                        ),
+                    "22001"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: e-mail com 151 caracteres deve ser rejeitado em registration_requests",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                await expectPostgresError(
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                email:
+                                    emailWithLength(151),
+                            }
+                        ),
+                    "22001"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: REJECTED sem reviewed_by deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                await expectPostgresError(
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                status:
+                                    "REJECTED",
+                                reviewed_at:
+                                    new Date(),
+                                rejection_reason:
+                                    "Motivo de teste",
+                            }
+                        ),
+                    "23514"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: created_user_id inexistente deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                await expectPostgresError(
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                created_user_id:
+                                    randomUUID(),
+                            }
+                        ),
+                    "23503"
+                );
+            }
+        );
+    }
+);

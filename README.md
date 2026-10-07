@@ -445,6 +445,65 @@ Essas tabelas permitem que os scripts sejam executados repetidamente sem reaplic
 
 ---
 
+# Schema PostgreSQL (PER-02)
+
+O PostgreSQL implementa o domínio de identidade do **DER PostgreSQL v1.3**. `users` é a fonte oficial da identidade, e as referências de usuário no MongoDB usam o `user_id` (UUID) do PostgreSQL.
+
+## Tabela `users`
+
+| Coluna | Tipo | Regras |
+|---|---|---|
+| `user_id` | UUID | PK, `gen_random_uuid()` |
+| `name` | VARCHAR(150) | obrigatório |
+| `email` | VARCHAR(150) | obrigatório, **UNIQUE** |
+| `password_hash` | VARCHAR(255) | obrigatório (nunca senha em texto puro) |
+| `status` | VARCHAR(20) | `ACTIVE` (padrão) ou `INACTIVE` (CHECK) |
+| `is_admin` | BOOLEAN | padrão `false` |
+| `created_at` / `updated_at` | TIMESTAMPTZ | padrão `CURRENT_TIMESTAMP` |
+| `last_login_at` | TIMESTAMPTZ | opcional |
+
+## Tabela `registration_requests`
+
+| Coluna | Tipo | Regras |
+|---|---|---|
+| `request_id` | UUID | PK, `gen_random_uuid()` |
+| `name` | VARCHAR(150) | obrigatório |
+| `email` | VARCHAR(150) | obrigatório |
+| `status` | VARCHAR(20) | `PENDING` (padrão), `APPROVED` ou `REJECTED` (CHECK) |
+| `requested_at` | TIMESTAMPTZ | padrão `CURRENT_TIMESTAMP` |
+| `reviewed_at` | TIMESTAMPTZ | opcional |
+| `reviewed_by` | UUID | FK → `users.user_id` (`ON DELETE RESTRICT`) |
+| `rejection_reason` | VARCHAR(500) | obrigatório quando `REJECTED` |
+| `created_user_id` | UUID | FK → `users.user_id` (`ON DELETE RESTRICT`) |
+
+Constraints de coerência: `APPROVED` exige `reviewed_by` e `reviewed_at`; `REJECTED` exige também `rejection_reason` não vazio.
+
+## Models e associações Sequelize
+
+- `User` e `RegistrationRequest` em `backend/src/models/postgres/`.
+- `RegistrationRequest.belongsTo(User, { as: "reviewer", foreignKey: "reviewed_by" })`.
+- `RegistrationRequest.belongsTo(User, { as: "createdUser", foreignKey: "created_user_id" })`.
+
+## Fluxo de trabalho em equipe
+
+- Quem criar coluna, constraint ou tabela cria uma **migration**, envia no Pull Request e os demais executam `npm run db:migrate`.
+- Se todos precisarem dos mesmos usuários fictícios de desenvolvimento, cria-se um **seeder** versionado e os demais executam `npm run db:seed`.
+- Um usuário cadastrado apenas para teste local **não** aparece automaticamente no banco dos demais.
+- **Não edite migrations já enviadas ao repositório**: crie uma nova migration.
+
+## Rollback
+
+```bash
+cd backend
+npm run db:migrate:status   # ver o que está up/down
+npm run db:migrate:undo     # desfaz a última migration
+npm run db:migrate          # reaplica
+```
+
+Para desfazer seeders: `npm run db:seed:undo`.
+
+---
+
 # Estruturas PostgreSQL já cobertas pelo ambiente
 
 A reprodução do ambiente deve gerar as estruturas previstas pelas migrations do projeto, incluindo, conforme a versão atual:
