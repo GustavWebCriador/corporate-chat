@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "npm run test:persistence",
+    "test": "npm run test:persistence && npm run test:api",
+    "test:api": "node --test --test-concurrency=1 tests/api/base-server.test.js",
     "test:integrity": "node scripts/test-integrity.js",
     "integration:verify": "node scripts/verify-cross-db-integrity.js",
     "verify:persistence": "npm run seed:verify && npm run integration:verify && npm run queries:verify && npm test",
