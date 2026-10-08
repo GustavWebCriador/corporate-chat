@@ -126,12 +126,18 @@ corporate-chat/
 │   │   │       ├── mongodb.js
 │   │   │       └── postgres.js
 │   │   ├── controllers/
+│   │   ├── errors/
+│   │   ├── middlewares/
 │   │   ├── models/
 │   │   │   ├── mongodb/
 │   │   │   └── postgres/
 │   │   ├── routes/
 │   │   ├── services/
+│   │   ├── app.js
 │   │   └── server.js
+│   │
+│   ├── tests/
+│   │   └── api/
 │   │
 │   ├── .env
 │   ├── .env.example
@@ -204,6 +210,8 @@ MONGO_PORT=27017
 MONGO_USER=<seu_usuario_mongodb>
 MONGO_PASSWORD=<sua_senha_mongodb>
 MONGO_DB=<seu_banco_mongodb>
+
+CORS_ORIGIN=
 
 JWT_SECRET=<sua_chave_secreta>
 ```
@@ -365,7 +373,7 @@ env:sync
 env:fresh
 
 seed:dev
-verify:dev-seed
+seed:verify
 
 test:integrity
 test
@@ -622,22 +630,55 @@ Quando as conexões estiverem corretas, o backend deverá apresentar mensagens e
 
 ---
 
-# Testando a API
+# API: contrato base (BE-01)
 
-Com o backend em execução:
+Todas as rotas ficam sob o prefixo `/api/v1`. Com o backend em execução, verifique se a API está no ar:
 
-```text
-http://localhost:3000
+```powershell
+Invoke-RestMethod http://localhost:3000/api/v1/health
 ```
 
-Retorno esperado:
+Retorna `200` quando PostgreSQL e MongoDB respondem e `503` quando algum está fora:
 
 ```json
 {
-  "application": "Corporate Chat API",
-  "status": "running"
+  "data": {
+    "status": "ok",
+    "timestamp": "2026-10-08T04:00:55.770Z",
+    "uptimeSeconds": 59,
+    "services": {
+      "postgres": { "status": "up" },
+      "mongodb": { "status": "up" }
+    }
+  }
 }
 ```
+
+## Formato das respostas
+
+- Sucesso: `{ "data": ... }`
+- Erro: `{ "error": { "code": "...", "message": "...", "details": ... } }` (`details` é opcional)
+
+| Situação | Status | `code` |
+|---|---|---|
+| Rota inexistente | 404 | `ROUTE_NOT_FOUND` |
+| JSON malformado | 400 | `INVALID_JSON` |
+| Corpo acima de 100 KB | 413 | `PAYLOAD_TOO_LARGE` |
+| Erro inesperado | 500 | `INTERNAL_ERROR` |
+
+Erros esperados são lançados com `AppError` (`src/errors/AppError.js`) e convertidos pelo `errorHandler`.
+
+## CORS
+
+Defina `CORS_ORIGIN` no `.env` com as origens permitidas separadas por vírgula (por exemplo `http://localhost:5173`). Se estiver vazio, o CORS fica liberado apenas fora de produção.
+
+## Testes da API
+
+```bash
+npm run test:api
+```
+
+Esses testes não precisam de PostgreSQL nem MongoDB no ar.
 
 ---
 
@@ -1294,7 +1335,7 @@ ou:
 npm test
 ```
 
-O script `npm test` utiliza a suíte de integridade como teste principal da persistência nesta etapa do projeto.
+O script `npm test` executa a suíte de persistência (integridade, integração e consultas) e, em seguida, os testes da API (`npm run test:api`).
 
 ---
 
@@ -1504,7 +1545,7 @@ Corporate Chat
     ├── env:sync
     ├── env:fresh
     ├── seed:dev
-    ├── verify:dev-seed
+    ├── seed:verify
     └── test:integrity
 ```
 
@@ -1570,6 +1611,9 @@ npm run test:integrity
 
 # Executar a suíte padrão de testes
 npm test
+
+# Executar apenas os testes da API
+npm run test:api
 
 # Iniciar API em desenvolvimento
 npm run dev
