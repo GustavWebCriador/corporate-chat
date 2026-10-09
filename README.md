@@ -703,6 +703,47 @@ Rotas protegidas usam o header `Authorization: Bearer <token>`. Os middlewares `
 | Usuário inativo | 403 | `USER_INACTIVE` |
 | Usuário não é administrador | 403 | `ADMIN_REQUIRED` |
 
+## Contrato das respostas de autenticação
+
+O objeto `user` tem o mesmo formato no login e no `GET /auth/me`, para o frontend usar um único tipo.
+
+`POST /api/v1/auth/login` (`200`, com `Cache-Control: no-store`):
+
+```json
+{
+  "data": {
+    "token": "<jwt>",
+    "tokenType": "Bearer",
+    "expiresIn": 3600,
+    "user": {
+      "user_id": "uuid",
+      "name": "Nome",
+      "email": "usuario@empresa.com",
+      "is_admin": false,
+      "status": "ACTIVE"
+    }
+  }
+}
+```
+
+`GET /api/v1/auth/me` (`200`, exige `Authorization: Bearer <token>`):
+
+```json
+{
+  "data": {
+    "user": {
+      "user_id": "uuid",
+      "name": "Nome",
+      "email": "usuario@empresa.com",
+      "is_admin": false,
+      "status": "ACTIVE"
+    }
+  }
+}
+```
+
+Os dados vêm do banco a cada requisição, não do token. O hash da senha nunca é retornado.
+
 ---
 
 # Validação do ambiente reproduzível
