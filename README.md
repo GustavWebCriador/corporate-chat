@@ -703,15 +703,6 @@ Rotas protegidas usam o header `Authorization: Bearer <token>`. Os middlewares `
 | Usuário inativo | 403 | `USER_INACTIVE` |
 | Usuário não é administrador | 403 | `ADMIN_REQUIRED` |
 
-## Contrato das respostas de autenticação
-
-O objeto `user` é igual no login e no `GET /auth/me`: `{ user_id, name, email, is_admin, status }`.
-
-- `POST /api/v1/auth/login` retorna `200` com `{ "data": { "token", "tokenType": "Bearer", "expiresIn", "user" } }`.
-- `GET /api/v1/auth/me` retorna `200` com `{ "data": { "user" } }` e exige `Authorization: Bearer <token>`.
-
-Os dados vêm do banco a cada requisição. O hash da senha nunca é retornado.
-
 ---
 
 # Validação do ambiente reproduzível
