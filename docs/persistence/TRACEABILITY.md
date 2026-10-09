@@ -20,7 +20,7 @@ Relacionar requisitos do Corporate Chat com as estruturas de persistência imple
 |---|---|---|---|---|
 | RF01 | Identidade, e-mail e `password_hash` | `User.js`, migrations, `postgresQueryService.js` | query por e-mail + integrity tests | 🟡 JWT/login ainda pendente |
 | RF03 | `status`, `is_admin`, `password_hash` | `users`, `User.js` | `postgres-integrity.test.js` | 🟡 API administrativa pendente |
-| RF04 | Solicitação de cadastro | `registration_requests`, constraints, queries | integrity + query tests | 🟡 fluxo/API de aprovação pendente |
+| RF04 | Solicitação de cadastro | `registration_requests`, constraints, queries | integrity + query tests | ✅ BE-05: API de solicitação, listagem, aprovação e rejeição (`tests/api/registration-requests.test.js`) |
 | RF05 | Dados necessários ao dashboard | `listUserConversations()` | query tests | 🟡 frontend/dashboard pendente |
 | RF06 | Conversa PRIVATE 1:1 | `createPrivateConversation()` + `private_key` | integration + integrity tests | ✅ Persistência |
 | RF07 | Persistência de mensagem | `Message.js`, `createMessage()` | Mongo integrity + integration | 🟡 Socket.IO/estado visual pendente |
