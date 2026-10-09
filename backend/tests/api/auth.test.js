@@ -168,6 +168,7 @@ test("LOGIN: credenciais válidas retornam 200 com token JWT e dados do usuário
             name: "Admin Teste",
             email: "admin@corp.local",
             is_admin: true,
+            status: "ACTIVE",
         });
 
         const claims = jwt.verify(body.data.token, SECRET, { algorithms: ["HS256"] });

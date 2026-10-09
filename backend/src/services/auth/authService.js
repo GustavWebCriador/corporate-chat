@@ -147,12 +147,7 @@ function createAuthService({
             token,
             tokenType: "Bearer",
             expiresIn: exp - iat,
-            user: {
-                user_id: user.user_id,
-                name: user.name,
-                email: user.email,
-                is_admin: Boolean(user.is_admin),
-            },
+            user: toPublicUser(user),
         };
     }
 
