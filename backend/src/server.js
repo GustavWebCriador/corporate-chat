@@ -4,9 +4,13 @@ const { createApp } = require("./app");
 
 const { connectPostgres } = require("./config/db/postgres");
 const { connectMongoDB } = require("./config/db/mongodb");
+const { getJwtConfig } = require("./config/jwt");
 
 async function startServer() {
     try {
+        // Falha cedo se JWT_SECRET estiver ausente (ou curto demais em produção).
+        getJwtConfig();
+
         console.log("[DATABASE] Connecting...");
 
         await connectPostgres();
