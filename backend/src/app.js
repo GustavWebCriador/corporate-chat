@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 
-const { createRouter } = require("./routes");
+const { createRouter } = require("./routes/v1");
 const { healthService: defaultHealthService } = require("./services/health/healthService");
 const { authService: defaultAuthService } = require("./services/auth/authService");
 const notFound = require("./middlewares/notFound");

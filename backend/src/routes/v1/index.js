@@ -1,6 +1,6 @@
 const express = require("express");
 
-const { createHealthController } = require("../controllers/healthController");
+const { createHealthRoutes } = require("./healthRoutes");
 const { createAuthRoutes } = require("./authRoutes");
 
 /**
@@ -10,9 +10,9 @@ const { createAuthRoutes } = require("./authRoutes");
  */
 function createRouter({ healthService, authService }) {
     const router = express.Router();
-    const healthController = createHealthController({ healthService });
 
-    router.get("/health", healthController.getHealth);
+
+    router.use("/health", createHealthRoutes({ healthService }));
     router.use("/auth", createAuthRoutes({ authService }));
 
     return router;

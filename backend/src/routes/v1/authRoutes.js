@@ -1,7 +1,7 @@
 const express = require("express");
 
-const { createAuthController } = require("../controllers/authController");
-const { createAuthenticate } = require("../middlewares/authenticate");
+const { createAuthController } = require("../../controllers/authController");
+const { createAuthenticate } = require("../../middlewares/authenticate");
 
 /**
  * Rotas de autenticação (montadas em /api/v1/auth).
