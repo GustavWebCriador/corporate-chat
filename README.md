@@ -682,6 +682,29 @@ Esses testes não precisam de PostgreSQL nem MongoDB no ar.
 
 ---
 
+# Autenticação (BE-02 e BE-03)
+
+Defina `JWT_SECRET` no `.env` (em produção, no mínimo 32 caracteres) e, opcionalmente, `JWT_EXPIRES_IN` (padrão `1h`).
+
+| Rota | Acesso | Descrição |
+|---|---|---|
+| `POST /api/v1/auth/login` | pública | Login por e-mail e senha; retorna o token JWT |
+| `GET /api/v1/auth/me` | token | Retorna o usuário autenticado |
+
+Rotas protegidas usam o header `Authorization: Bearer <token>`. Os middlewares `authenticate` e `requireAdmin` ficam em `src/middlewares/authenticate.js`.
+
+| Situação | Status | `code` |
+|---|---|---|
+| Dados de login inválidos | 400 | `VALIDATION_ERROR` |
+| E-mail ou senha incorretos | 401 | `INVALID_CREDENTIALS` |
+| Token ausente ou mal formatado | 401 | `TOKEN_MISSING` |
+| Token inválido | 401 | `TOKEN_INVALID` |
+| Token expirado | 401 | `TOKEN_EXPIRED` |
+| Usuário inativo | 403 | `USER_INACTIVE` |
+| Usuário não é administrador | 403 | `ADMIN_REQUIRED` |
+
+---
+
 # Validação do ambiente reproduzível
 
 A validação do ambiente reproduzível deve ser realizada preferencialmente em uma máquina que ainda não possua o ambiente configurado pelo responsável pela implementação.

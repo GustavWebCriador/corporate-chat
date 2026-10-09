@@ -3,6 +3,7 @@ const cors = require("cors");
 
 const { createRouter } = require("./routes");
 const { healthService: defaultHealthService } = require("./services/health/healthService");
+const { authService: defaultAuthService } = require("./services/auth/authService");
 const notFound = require("./middlewares/notFound");
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -21,9 +22,13 @@ function buildCorsOptions() {
 
 /**
  * Monta a aplicação Express sem abrir porta nem conectar em banco, para que
- * possa ser testada com facilidade. `healthService` pode ser injetado nos testes.
+ * possa ser testada com facilidade. `healthService` e `authService` podem ser
+ * injetados nos testes.
  */
-function createApp({ healthService = defaultHealthService } = {}) {
+function createApp({
+    healthService = defaultHealthService,
+    authService = defaultAuthService,
+} = {}) {
     const app = express();
 
     app.disable("x-powered-by");
@@ -31,7 +36,7 @@ function createApp({ healthService = defaultHealthService } = {}) {
     app.use(cors(buildCorsOptions()));
     app.use(express.json({ limit: "100kb" }));
 
-    app.use(API_PREFIX, createRouter({ healthService }));
+    app.use(API_PREFIX, createRouter({ healthService, authService }));
 
     app.use(notFound);
     app.use(errorHandler);
