@@ -3,7 +3,7 @@ const bcrypt = require("bcryptjs");
 const AppError = require("../../errors/AppError");
 const { signAccessToken, verifyAccessToken } = require("../../config/jwt");
 
-const EMAIL_MAX_LENGTH = 50; // RI02
+const EMAIL_MAX_LENGTH = 150; // RI02 (DER v1.3, PER-02)
 const PASSWORD_MAX_LENGTH = 128;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_REGEX =

@@ -302,9 +302,9 @@ test("LOGIN: tipos inválidos (número, objeto, array) retornam 400", async () =
     });
 });
 
-test("LOGIN: e-mail com formato inválido ou maior que 50 caracteres retorna 400", async () => {
+test("LOGIN: e-mail com formato inválido ou maior que 150 caracteres retorna 400", async () => {
     await withApi(async ({ baseUrl }) => {
-        const invalid = ["sem-arroba", "a@b", `${"a".repeat(45)}@corp.local`];
+        const invalid = ["sem-arroba", "a@b", `${"a".repeat(140)}@corp.local`];
 
         for (const email of invalid) {
             const response = await post(baseUrl, "/api/v1/auth/login", {
@@ -314,6 +314,15 @@ test("LOGIN: e-mail com formato inválido ou maior que 50 caracteres retorna 400
 
             assert.equal(response.status, 400, email);
         }
+    });
+});
+
+test("LOGIN: e-mail com exatamente 150 caracteres é aceito na validação (DER v1.3)", async () => {
+    await withApi(async ({ baseUrl }) => {
+        const email = `${"a".repeat(139)}@corp.local`;
+        assert.equal(email.length, 150);
+        const response = await post(baseUrl, "/api/v1/auth/login", { email, password: PASSWORD });
+        assert.equal(response.status, 401);
     });
 });
 
