@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 
 const AppError = require("../../errors/AppError");
 const { signAccessToken, verifyAccessToken } = require("../../config/jwt");
+const { createUserRepository,} = require("../../repositories/postgres/userRepository");
 
 const EMAIL_MAX_LENGTH = 150; // RI02 (DER v1.3, PER-02)
 const PASSWORD_MAX_LENGTH = 128;
@@ -19,44 +20,6 @@ const DUMMY_HASH =
  * Acesso a dados do PostgreSQL. Os models são carregados sob demanda para que
  * importar este módulo (por exemplo nos testes) não abra conexão com o banco.
  */
-function createUserRepository() {
-    function models() {
-        return require("../../models/postgres/Index");
-    }
-
-    return {
-        async findByEmail(email) {
-            const { User, sequelize } = models();
-
-            const user = await User.findOne({
-                where: sequelize.where(
-                    sequelize.fn("lower", sequelize.col("email")),
-                    email
-                ),
-            });
-
-            return user ? user.get({ plain: true }) : null;
-        },
-
-        async findById(userId) {
-            const { User } = models();
-
-            const user = await User.findByPk(userId);
-
-            return user ? user.get({ plain: true }) : null;
-        },
-
-        async touchLastLogin(userId, date) {
-            const { User } = models();
-
-            // silent: não altera updated_at só porque o usuário fez login.
-            await User.update(
-                { last_login_at: date },
-                { where: { user_id: userId }, silent: true }
-            );
-        },
-    };
-}
 
 function toPublicUser(user) {
     return {
@@ -201,7 +164,9 @@ function createAuthService({
 }
 
 module.exports = {
+
     createAuthService,
-    createUserRepository,
-    authService: createAuthService(),
+
+    authService:
+        createAuthService(),
 };
