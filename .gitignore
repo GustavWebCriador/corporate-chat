@@ -8,3 +8,6 @@ yarn-error.log*
 
 .vscode/
 .DS_Store
+
+# Repomix - arquivos locais de análise
+repomix-output*.xml
