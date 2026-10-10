@@ -1,5 +1,5 @@
 const express = require("express");
-
+const { createConversationRoutes } = require("./conversationRoutes");
 const { createHealthRoutes } = require("./healthRoutes");
 const { createAuthRoutes } = require("./authRoutes");
 const { createAdminUserRoutes } = require("./adminUserRoutes");
@@ -18,6 +18,7 @@ function createRouter({
     authService,
     userService,
     registrationRequestService,
+    conversationService,
 }) {
     const router = express.Router();
 
@@ -53,7 +54,13 @@ function createRouter({
             registrationRequestService,
         })
     );
-
+    router.use(
+        "/conversations",
+        createConversationRoutes({
+            authService,
+            conversationService,
+        })
+    );
     return router;
 }
 
