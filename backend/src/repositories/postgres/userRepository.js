@@ -129,6 +129,150 @@ function createUserRepository() {
             }
         );
     }
+    /**
+ * Lista todos os usuários.
+ */
+async function findAll(
+    options = {}
+) {
+
+    const {
+        User,
+    } = models();
+
+
+    const users =
+        await User.findAll({
+
+            order: [
+                [
+                    "name",
+                    "ASC",
+                ],
+                [
+                    "user_id",
+                    "ASC",
+                ],
+            ],
+
+            transaction:
+                options.transaction,
+        });
+
+
+    return users.map(
+        user =>
+            user.get({
+                plain: true,
+            })
+    );
+}
+
+
+/**
+ * Cria usuário.
+ */
+async function create(
+    data,
+    options = {}
+) {
+
+    const {
+        User,
+    } = models();
+
+
+    const user =
+        await User.create(
+            data,
+            {
+                transaction:
+                    options.transaction,
+            }
+        );
+
+
+    return user.get({
+        plain: true,
+    });
+}
+
+
+/**
+ * Atualiza status do usuário.
+ */
+async function updateStatus(
+    userId,
+    status,
+    options = {}
+) {
+
+    const {
+        User,
+    } = models();
+
+
+    const [
+        affectedRows,
+    ] =
+        await User.update(
+
+            {
+                status,
+            },
+
+            {
+                where: {
+                    user_id:
+                        userId,
+                },
+
+                transaction:
+                    options.transaction,
+            }
+        );
+
+
+    return affectedRows;
+}
+/**
+ * Atualiza o hash de senha.
+ */
+async function updatePasswordHash(
+    userId,
+    passwordHash,
+    options = {}
+) {
+
+    const {
+        User,
+    } = models();
+
+
+    const [
+        affectedRows,
+    ] =
+        await User.update(
+
+            {
+                password_hash:
+                    passwordHash,
+            },
+
+            {
+                where: {
+                    user_id:
+                        userId,
+                },
+
+                transaction:
+                    options.transaction,
+            }
+        );
+
+
+    return affectedRows;
+}
 
 
     return {
@@ -136,6 +280,14 @@ function createUserRepository() {
         findByEmail,
 
         findById,
+
+        findAll,
+
+        create,
+
+        updateStatus,
+
+        updatePasswordHash,
 
         touchLastLogin,
     };
