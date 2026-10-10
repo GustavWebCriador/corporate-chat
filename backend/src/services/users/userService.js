@@ -203,9 +203,7 @@ function validateCreateUserInput(
 
     if (
         body.is_admin !==
-            undefined &&
-        typeof body.is_admin !==
-            "boolean"
+        undefined
     ) {
 
         details.push({
@@ -214,10 +212,9 @@ function validateCreateUserInput(
                 "is_admin",
 
             message:
-                "is_admin deve ser boolean.",
+                "O campo is_admin não pode ser definido neste endpoint.",
         });
     }
-
 
     if (
         details.length >
@@ -239,9 +236,6 @@ function validateCreateUserInput(
         email,
 
         password,
-
-        is_admin:
-            body.is_admin === true,
     };
 }
 
@@ -333,7 +327,7 @@ function createUserService({
                             "ACTIVE",
 
                         is_admin:
-                            data.is_admin,
+                            false,
                     });
 
 
