@@ -19,7 +19,27 @@ function createAuthController({ authService }) {
         res.status(200).json({ data: { user: req.user } });
     }
 
-    return { login, me };
+    /**
+     * POST /api/v1/auth/logout
+     * Encerra somente a sessão autenticada.
+     */
+    async function logout(req, res) {
+        const authorization = req.headers.authorization;
+
+        // O middleware já validou o token Bearer.
+        const token = authorization
+            .trim()
+            .replace(/^Bearer\s+/i, "");
+
+        await authService.logout(token);
+
+        res.set("Cache-Control", "no-store");
+
+        return res.status(204).send();
+    }
+
+
+    return { login, me, logout };
 }
 
 module.exports = { createAuthController };

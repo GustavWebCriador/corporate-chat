@@ -37,16 +37,53 @@ function getJwtConfig() {
  * Gera o token de acesso. O payload carrega apenas o necessário:
  * `sub` (user_id) e `is_admin`. Dados sensíveis nunca entram no token.
  */
-function signAccessToken({ userId, isAdmin }) {
-    const { secret, expiresIn, algorithm, issuer } = getJwtConfig();
 
-    return jwt.sign({ is_admin: Boolean(isAdmin) }, secret, {
-        subject: String(userId),
+/**
+ * Gera o token de acesso JWT.
+ *
+ * sub: identificador do usuário
+ * jti: identificador único da sessão
+ * is_admin: indicador de permissão administrativa
+ */
+function signAccessToken({
+    userId,
+    isAdmin,
+    sessionId,
+}) {
+    const UUID_REGEX =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (
+        typeof sessionId !== "string" ||
+        !UUID_REGEX.test(sessionId)
+    ) {
+        throw new Error(
+            "sessionId inválido para emissão do JWT."
+        );
+    }
+
+    const {
+        secret,
         expiresIn,
         algorithm,
         issuer,
-    });
+    } = getJwtConfig();
+
+    return jwt.sign(
+        {
+            is_admin: Boolean(isAdmin),
+        },
+        secret,
+        {
+            subject: String(userId),
+            jwtid: sessionId,
+            expiresIn,
+            algorithm,
+            issuer,
+        }
+    );
 }
+
 
 /**
  * Valida assinatura, algoritmo, emissor e expiração.
