@@ -1,3 +1,4 @@
+
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "segredo-de-teste-com-mais-de-trinta-e-dois-caracteres";
 
@@ -6,6 +7,7 @@ const assert = require("node:assert/strict");
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { randomUUID } = require("node:crypto");
 
 const { createApp } = require("../../src/app");
 const { createAuthService } = require("../../src/services/auth/authService");
@@ -15,6 +17,10 @@ const { getJwtConfig } = require("../../src/config/jwt");
 const notFound = require("../../src/middlewares/notFound");
 const errorHandler = require("../../src/middlewares/errorHandler");
 
+const {
+    createMockAuthSessionRepository,
+} = require("../helpers/mockAuthSessionRepository");
+
 const SECRET = process.env.JWT_SECRET;
 const PASSWORD = "Senha@123";
 
@@ -22,7 +28,9 @@ const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
 const INACTIVE_ID = "33333333-3333-4333-8333-333333333333";
 
-// ---------- apoio ----------
+// ======================================================
+// HELPERS
+// ======================================================
 
 function makeRepository() {
     const passwordHash = bcrypt.hashSync(PASSWORD, 4);
@@ -68,13 +76,11 @@ function makeRepository() {
                     return { ...row };
                 }
             }
-
             return null;
         },
 
         async findById(userId) {
             const row = byId.get(userId);
-
             return row ? { ...row } : null;
         },
 
@@ -101,15 +107,32 @@ function close(server) {
 
 async function withApi(run) {
     const repository = makeRepository();
-    const authService = createAuthService({ userRepository: repository });
-    const healthService = createHealthService({
-        checks: { postgres: async () => {}, mongodb: async () => {} },
+
+    const sessionRepository = createMockAuthSessionRepository();
+
+    const authService = createAuthService({
+        userRepository: repository,
+        sessionRepository,
     });
 
-    const { server, baseUrl } = await listen(createApp({ healthService, authService }));
+    const healthService = createHealthService({
+        checks: {
+            postgres: async () => {},
+            mongodb: async () => {},
+        },
+    });
+
+    const { server, baseUrl } = await listen(
+        createApp({ healthService, authService })
+    );
 
     try {
-        await run({ baseUrl, repository, authService });
+        await run({
+            baseUrl,
+            repository,
+            sessionRepository,
+            authService,
+        });
     } finally {
         await close(server);
     }
@@ -125,7 +148,9 @@ function post(baseUrl, path, body) {
 
 function get(baseUrl, path, authorization) {
     return fetch(`${baseUrl}${path}`, {
-        headers: authorization ? { Authorization: authorization } : {},
+        headers: authorization
+            ? { Authorization: authorization }
+            : {},
     });
 }
 
@@ -139,16 +164,45 @@ function signToken(claims = {}, options = {}) {
     });
 }
 
+async function signSessionToken(
+    sessionRepository,
+    claims = {},
+    options = {}
+) {
+    const sessionId = randomUUID();
+
+    const token = signToken(claims, {
+        ...options,
+        jwtid: sessionId,
+    });
+
+    const payload = jwt.decode(token);
+
+    await sessionRepository.createSession({
+        sessionId,
+        userId: payload.sub,
+        expiresAt: new Date(payload.exp * 1000),
+    });
+
+    return token;
+}
+
 async function loginAs(baseUrl, email) {
     const response = await post(baseUrl, "/api/v1/auth/login", {
         email,
         password: PASSWORD,
     });
 
-    return (await response.json()).data.token;
+    assert.equal(response.status, 200);
+
+    const body = await response.json();
+
+    return body.data.token;
 }
 
-// ---------- BE-02: login ----------
+// ======================================================
+// BE-02 — LOGIN
+// ======================================================
 
 test("LOGIN: credenciais válidas retornam 200 com token JWT e dados do usuário", async () => {
     await withApi(async ({ baseUrl }) => {
@@ -156,6 +210,7 @@ test("LOGIN: credenciais válidas retornam 200 com token JWT e dados do usuário
             email: "admin@corp.local",
             password: PASSWORD,
         });
+
         const text = await response.text();
         const body = JSON.parse(text);
 
@@ -163,6 +218,7 @@ test("LOGIN: credenciais válidas retornam 200 com token JWT e dados do usuário
         assert.equal(response.headers.get("cache-control"), "no-store");
         assert.equal(body.data.tokenType, "Bearer");
         assert.equal(typeof body.data.expiresIn, "number");
+
         assert.deepEqual(body.data.user, {
             user_id: ADMIN_ID,
             name: "Admin Teste",
@@ -171,12 +227,17 @@ test("LOGIN: credenciais válidas retornam 200 com token JWT e dados do usuário
             status: "ACTIVE",
         });
 
-        const claims = jwt.verify(body.data.token, SECRET, { algorithms: ["HS256"] });
+        const claims = jwt.verify(body.data.token, SECRET, {
+            algorithms: ["HS256"],
+        });
 
         assert.equal(claims.sub, ADMIN_ID);
         assert.equal(claims.is_admin, true);
         assert.equal(claims.iss, "corporate-chat");
         assert.ok(claims.exp > claims.iat);
+
+        // BE-12: cada JWT precisa possuir uma sessão identificável.
+        assert.equal(typeof claims.jti, "string");
 
         assert.ok(!text.includes("password_hash"));
         assert.ok(!text.includes("$2"));
@@ -198,11 +259,12 @@ test("LOGIN: login bem-sucedido atualiza last_login_at", async () => {
     await withApi(async ({ baseUrl, repository }) => {
         assert.equal(repository.byId.get(USER_ID).last_login_at, null);
 
-        await post(baseUrl, "/api/v1/auth/login", {
+        const response = await post(baseUrl, "/api/v1/auth/login", {
             email: "user@corp.local",
             password: PASSWORD,
         });
 
+        assert.equal(response.status, 200);
         assert.ok(repository.byId.get(USER_ID).last_login_at instanceof Date);
     });
 });
@@ -213,6 +275,7 @@ test("LOGIN: senha errada retorna 401 INVALID_CREDENTIALS e não atualiza last_l
             email: "user@corp.local",
             password: "senha-errada",
         });
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -227,13 +290,18 @@ test("LOGIN: e-mail inexistente responde igual a senha errada (sem revelar cadas
             email: "user@corp.local",
             password: "senha-errada",
         });
+
         const unknownEmail = await post(baseUrl, "/api/v1/auth/login", {
             email: "ninguem@corp.local",
             password: "senha-errada",
         });
 
         assert.equal(unknownEmail.status, wrongPassword.status);
-        assert.deepEqual(await unknownEmail.json(), await wrongPassword.json());
+
+        assert.deepEqual(
+            await unknownEmail.json(),
+            await wrongPassword.json()
+        );
     });
 });
 
@@ -243,6 +311,7 @@ test("LOGIN: usuário INACTIVE com senha correta retorna 403 USER_INACTIVE", asy
             email: "inativo@corp.local",
             password: PASSWORD,
         });
+
         const body = await response.json();
 
         assert.equal(response.status, 403);
@@ -269,6 +338,7 @@ test("LOGIN: campos ausentes retornam 400 VALIDATION_ERROR com details", async (
 
         assert.equal(response.status, 400);
         assert.equal(body.error.code, "VALIDATION_ERROR");
+
         assert.deepEqual(
             body.error.details.map((detail) => detail.field).sort(),
             ["email", "password"]
@@ -278,7 +348,10 @@ test("LOGIN: campos ausentes retornam 400 VALIDATION_ERROR com details", async (
 
 test("LOGIN: requisição sem corpo retorna 400 VALIDATION_ERROR", async () => {
     await withApi(async ({ baseUrl }) => {
-        const response = await fetch(`${baseUrl}/api/v1/auth/login`, { method: "POST" });
+        const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
+            method: "POST",
+        });
+
         const body = await response.json();
 
         assert.equal(response.status, 400);
@@ -296,7 +369,11 @@ test("LOGIN: tipos inválidos (número, objeto, array) retornam 400", async () =
         ];
 
         for (const payload of payloads) {
-            const response = await post(baseUrl, "/api/v1/auth/login", payload);
+            const response = await post(
+                baseUrl,
+                "/api/v1/auth/login",
+                payload
+            );
 
             assert.equal(response.status, 400);
         }
@@ -305,7 +382,11 @@ test("LOGIN: tipos inválidos (número, objeto, array) retornam 400", async () =
 
 test("LOGIN: e-mail com formato inválido ou maior que 150 caracteres retorna 400", async () => {
     await withApi(async ({ baseUrl }) => {
-        const invalid = ["sem-arroba", "a@b", `${"a".repeat(140)}@corp.local`];
+        const invalid = [
+            "sem-arroba",
+            "a@b",
+            `${"a".repeat(140)}@corp.local`,
+        ];
 
         for (const email of invalid) {
             const response = await post(baseUrl, "/api/v1/auth/login", {
@@ -321,8 +402,15 @@ test("LOGIN: e-mail com formato inválido ou maior que 150 caracteres retorna 40
 test("LOGIN: e-mail com exatamente 150 caracteres é aceito na validação (DER v1.3)", async () => {
     await withApi(async ({ baseUrl }) => {
         const email = `${"a".repeat(139)}@corp.local`;
+
         assert.equal(email.length, 150);
-        const response = await post(baseUrl, "/api/v1/auth/login", { email, password: PASSWORD });
+
+        const response = await post(baseUrl, "/api/v1/auth/login", {
+            email,
+            password: PASSWORD,
+        });
+
+        // O formato passa na validação, mas o usuário não existe.
         assert.equal(response.status, 401);
     });
 });
@@ -345,6 +433,7 @@ test("LOGIN: JSON malformado retorna 400 INVALID_JSON", async () => {
             headers: { "Content-Type": "application/json" },
             body: "{ nao e json",
         });
+
         const body = await response.json();
 
         assert.equal(response.status, 400);
@@ -361,28 +450,42 @@ test("LOGIN: JWT_SECRET ausente retorna 500 genérico, sem vazar detalhes nem gr
                 email: "user@corp.local",
                 password: PASSWORD,
             });
+
             const text = await response.text();
 
             assert.equal(response.status, 500);
             assert.equal(JSON.parse(text).error.code, "INTERNAL_ERROR");
             assert.ok(!text.includes("JWT_SECRET"));
-            assert.equal(repository.byId.get(USER_ID).last_login_at, null);
+
+            assert.equal(
+                repository.byId.get(USER_ID).last_login_at,
+                null
+            );
         } finally {
             process.env.JWT_SECRET = SECRET;
         }
     });
 });
 
-// ---------- BE-03: authenticate ----------
+// ======================================================
+// BE-03 — AUTENTICAÇÃO
+// ======================================================
 
 test("AUTH: fluxo completo, login e depois GET /auth/me com o token", async () => {
     await withApi(async ({ baseUrl }) => {
         const token = await loginAs(baseUrl, "user@corp.local");
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const text = await response.text();
         const body = JSON.parse(text);
 
         assert.equal(response.status, 200);
+
         assert.deepEqual(body.data.user, {
             user_id: USER_ID,
             name: "Usuario Teste",
@@ -390,6 +493,7 @@ test("AUTH: fluxo completo, login e depois GET /auth/me com o token", async () =
             is_admin: false,
             status: "ACTIVE",
         });
+
         assert.ok(!text.includes("password_hash"));
     });
 });
@@ -397,7 +501,12 @@ test("AUTH: fluxo completo, login e depois GET /auth/me com o token", async () =
 test("AUTH: esquema Bearer é aceito sem diferenciar maiúsculas", async () => {
     await withApi(async ({ baseUrl }) => {
         const token = await loginAs(baseUrl, "user@corp.local");
-        const response = await get(baseUrl, "/api/v1/auth/me", `bearer ${token}`);
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `bearer ${token}`
+        );
 
         assert.equal(response.status, 200);
     });
@@ -405,8 +514,21 @@ test("AUTH: esquema Bearer é aceito sem diferenciar maiúsculas", async () => {
 
 test("AUTH: sem header, esquema errado ou Bearer sem token retornam 401 TOKEN_MISSING", async () => {
     await withApi(async ({ baseUrl }) => {
-        for (const header of [undefined, "Basic abc", "Bearer", "Bearer   ", "abc.def.ghi"]) {
-            const response = await get(baseUrl, "/api/v1/auth/me", header);
+        const headers = [
+            undefined,
+            "Basic abc",
+            "Bearer",
+            "Bearer   ",
+            "abc.def.ghi",
+        ];
+
+        for (const header of headers) {
+            const response = await get(
+                baseUrl,
+                "/api/v1/auth/me",
+                header
+            );
+
             const body = await response.json();
 
             assert.equal(response.status, 401, String(header));
@@ -417,7 +539,12 @@ test("AUTH: sem header, esquema errado ou Bearer sem token retornam 401 TOKEN_MI
 
 test("AUTH: token aleatório retorna 401 TOKEN_INVALID", async () => {
     await withApi(async ({ baseUrl }) => {
-        const response = await get(baseUrl, "/api/v1/auth/me", "Bearer isso.nao.eh-jwt");
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            "Bearer isso.nao.eh-jwt"
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -427,8 +554,17 @@ test("AUTH: token aleatório retorna 401 TOKEN_INVALID", async () => {
 
 test("AUTH: token expirado retorna 401 TOKEN_EXPIRED", async () => {
     await withApi(async ({ baseUrl }) => {
-        const token = signToken({ is_admin: false }, { expiresIn: -10 });
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const token = signToken(
+            { is_admin: false },
+            { expiresIn: -10 }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -438,13 +574,23 @@ test("AUTH: token expirado retorna 401 TOKEN_EXPIRED", async () => {
 
 test("AUTH: token assinado com outro segredo retorna 401 TOKEN_INVALID", async () => {
     await withApi(async ({ baseUrl }) => {
-        const token = jwt.sign({ is_admin: true }, "outro-segredo-qualquer-123456789012", {
-            algorithm: "HS256",
-            issuer: "corporate-chat",
-            subject: ADMIN_ID,
-            expiresIn: "5m",
-        });
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const token = jwt.sign(
+            { is_admin: true },
+            "outro-segredo-qualquer-123456789012",
+            {
+                algorithm: "HS256",
+                issuer: "corporate-chat",
+                subject: ADMIN_ID,
+                expiresIn: "5m",
+            }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -454,13 +600,23 @@ test("AUTH: token assinado com outro segredo retorna 401 TOKEN_INVALID", async (
 
 test("AUTH: token com algoritmo 'none' é rejeitado", async () => {
     await withApi(async ({ baseUrl }) => {
-        const token = jwt.sign({ is_admin: true }, null, {
-            algorithm: "none",
-            issuer: "corporate-chat",
-            subject: ADMIN_ID,
-            expiresIn: "5m",
-        });
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const token = jwt.sign(
+            { is_admin: true },
+            null,
+            {
+                algorithm: "none",
+                issuer: "corporate-chat",
+                subject: ADMIN_ID,
+                expiresIn: "5m",
+            }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -470,8 +626,17 @@ test("AUTH: token com algoritmo 'none' é rejeitado", async () => {
 
 test("AUTH: token com emissor diferente é rejeitado", async () => {
     await withApi(async ({ baseUrl }) => {
-        const token = signToken({ is_admin: false }, { issuer: "outro-sistema" });
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const token = signToken(
+            { is_admin: false },
+            { issuer: "outro-sistema" }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -481,8 +646,17 @@ test("AUTH: token com emissor diferente é rejeitado", async () => {
 
 test("AUTH: token com sub que não é UUID é rejeitado sem consultar o banco", async () => {
     await withApi(async ({ baseUrl }) => {
-        const token = signToken({ is_admin: false }, { subject: "1' OR '1'='1" });
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const token = signToken(
+            { is_admin: false },
+            { subject: "1' OR '1'='1" }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -496,7 +670,12 @@ test("AUTH: token de usuário que não existe mais retorna 401 TOKEN_INVALID", a
 
         repository.byId.delete(USER_ID);
 
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -510,7 +689,12 @@ test("AUTH: usuário desativado depois do login perde o acesso (403 USER_INACTIV
 
         repository.byId.get(USER_ID).status = "INACTIVE";
 
-        const response = await get(baseUrl, "/api/v1/auth/me", `Bearer ${token}`);
+        const response = await get(
+            baseUrl,
+            "/api/v1/auth/me",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 403);
@@ -518,19 +702,35 @@ test("AUTH: usuário desativado depois do login perde o acesso (403 USER_INACTIV
     });
 });
 
-// ---------- BE-03: autorização administrativa ----------
+// ======================================================
+// BE-03 — AUTORIZAÇÃO ADMINISTRATIVA
+// ======================================================
 
 function buildGuardedApp(authService) {
     const app = express();
     const authenticate = createAuthenticate({ authService });
 
-    app.get("/admin-only", authenticate, requireAdmin, (req, res) => {
-        res.json({ data: { ok: true, user_id: req.user.user_id } });
-    });
+    app.get(
+        "/admin-only",
+        authenticate,
+        requireAdmin,
+        (req, res) => {
+            res.json({
+                data: {
+                    ok: true,
+                    user_id: req.user.user_id,
+                },
+            });
+        }
+    );
 
-    app.get("/requer-admin-sem-authenticate", requireAdmin, (req, res) => {
-        res.json({ data: { ok: true } });
-    });
+    app.get(
+        "/requer-admin-sem-authenticate",
+        requireAdmin,
+        (req, res) => {
+            res.json({ data: { ok: true } });
+        }
+    );
 
     app.use(notFound);
     app.use(errorHandler);
@@ -540,20 +740,47 @@ function buildGuardedApp(authService) {
 
 async function withGuardedApp(run) {
     const repository = makeRepository();
-    const authService = createAuthService({ userRepository: repository });
-    const { server, baseUrl } = await listen(buildGuardedApp(authService));
+
+    const sessionRepository = createMockAuthSessionRepository();
+
+    const authService = createAuthService({
+        userRepository: repository,
+        sessionRepository,
+    });
+
+    const { server, baseUrl } = await listen(
+        buildGuardedApp(authService)
+    );
 
     try {
-        await run({ baseUrl, repository });
+        await run({
+            baseUrl,
+            repository,
+            sessionRepository,
+            authService,
+        });
     } finally {
         await close(server);
     }
 }
 
 test("ADMIN: administrador acessa rota protegida (200)", async () => {
-    await withGuardedApp(async ({ baseUrl }) => {
-        const token = signToken({ is_admin: true }, { subject: ADMIN_ID });
-        const response = await get(baseUrl, "/admin-only", `Bearer ${token}`);
+    await withGuardedApp(async ({
+        baseUrl,
+        sessionRepository,
+    }) => {
+        const token = await signSessionToken(
+            sessionRepository,
+            { is_admin: true },
+            { subject: ADMIN_ID }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/admin-only",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 200);
@@ -562,9 +789,22 @@ test("ADMIN: administrador acessa rota protegida (200)", async () => {
 });
 
 test("ADMIN: usuário comum recebe 403 ADMIN_REQUIRED", async () => {
-    await withGuardedApp(async ({ baseUrl }) => {
-        const token = signToken({ is_admin: false }, { subject: USER_ID });
-        const response = await get(baseUrl, "/admin-only", `Bearer ${token}`);
+    await withGuardedApp(async ({
+        baseUrl,
+        sessionRepository,
+    }) => {
+        const token = await signSessionToken(
+            sessionRepository,
+            { is_admin: false },
+            { subject: USER_ID }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/admin-only",
+            `Bearer ${token}`
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 403);
@@ -574,7 +814,11 @@ test("ADMIN: usuário comum recebe 403 ADMIN_REQUIRED", async () => {
 
 test("ADMIN: sem token recebe 401 TOKEN_MISSING (e não 403)", async () => {
     await withGuardedApp(async ({ baseUrl }) => {
-        const response = await get(baseUrl, "/admin-only");
+        const response = await get(
+            baseUrl,
+            "/admin-only"
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -584,7 +828,11 @@ test("ADMIN: sem token recebe 401 TOKEN_MISSING (e não 403)", async () => {
 
 test("ADMIN: requireAdmin sem authenticate antes retorna 401 AUTH_REQUIRED", async () => {
     await withGuardedApp(async ({ baseUrl }) => {
-        const response = await get(baseUrl, "/requer-admin-sem-authenticate");
+        const response = await get(
+            baseUrl,
+            "/requer-admin-sem-authenticate"
+        );
+
         const body = await response.json();
 
         assert.equal(response.status, 401);
@@ -593,38 +841,76 @@ test("ADMIN: requireAdmin sem authenticate antes retorna 401 AUTH_REQUIRED", asy
 });
 
 test("ADMIN: a permissão vem do banco, não do token (claim is_admin adulterada não vale)", async () => {
-    await withGuardedApp(async ({ baseUrl }) => {
-        // Token afirma is_admin=true, mas no banco o usuário não é administrador.
-        const token = signToken({ is_admin: true }, { subject: USER_ID });
-        const response = await get(baseUrl, "/admin-only", `Bearer ${token}`);
+    await withGuardedApp(async ({
+        baseUrl,
+        sessionRepository,
+    }) => {
+        // O token afirma is_admin=true, mas o banco
+        // informa que o usuário não é administrador.
+        const token = await signSessionToken(
+            sessionRepository,
+            { is_admin: true },
+            { subject: USER_ID }
+        );
+
+        const response = await get(
+            baseUrl,
+            "/admin-only",
+            `Bearer ${token}`
+        );
+
+        const body = await response.json();
 
         assert.equal(response.status, 403);
+        assert.equal(body.error.code, "ADMIN_REQUIRED");
     });
 });
 
 test("ADMIN: promoção a administrador vale imediatamente, mesmo com token antigo", async () => {
-    await withGuardedApp(async ({ baseUrl, repository }) => {
-        const token = signToken({ is_admin: false }, { subject: USER_ID });
+    await withGuardedApp(async ({
+        baseUrl,
+        repository,
+        sessionRepository,
+    }) => {
+        const token = await signSessionToken(
+            sessionRepository,
+            { is_admin: false },
+            { subject: USER_ID }
+        );
 
         repository.byId.get(USER_ID).is_admin = true;
 
-        const response = await get(baseUrl, "/admin-only", `Bearer ${token}`);
+        const response = await get(
+            baseUrl,
+            "/admin-only",
+            `Bearer ${token}`
+        );
 
         assert.equal(response.status, 200);
     });
 });
 
-// ---------- configuração do JWT ----------
+// ======================================================
+// CONFIGURAÇÃO JWT
+// ======================================================
 
 test("CONFIG: getJwtConfig exige JWT_SECRET", () => {
     const original = process.env.JWT_SECRET;
 
     try {
         delete process.env.JWT_SECRET;
-        assert.throws(() => getJwtConfig(), /JWT_SECRET/);
+
+        assert.throws(
+            () => getJwtConfig(),
+            /JWT_SECRET/
+        );
 
         process.env.JWT_SECRET = "   ";
-        assert.throws(() => getJwtConfig(), /JWT_SECRET/);
+
+        assert.throws(
+            () => getJwtConfig(),
+            /JWT_SECRET/
+        );
     } finally {
         process.env.JWT_SECRET = original;
     }
@@ -637,7 +923,11 @@ test("CONFIG: em produção, segredo curto é recusado", () => {
     try {
         process.env.NODE_ENV = "production";
         process.env.JWT_SECRET = "curto";
-        assert.throws(() => getJwtConfig(), /pelo menos 32/);
+
+        assert.throws(
+            () => getJwtConfig(),
+            /pelo menos 32/
+        );
     } finally {
         process.env.JWT_SECRET = originalSecret;
         process.env.NODE_ENV = originalEnv;
@@ -649,10 +939,18 @@ test("CONFIG: expiração padrão é 1h e pode ser alterada por JWT_EXPIRES_IN",
 
     try {
         delete process.env.JWT_EXPIRES_IN;
-        assert.equal(getJwtConfig().expiresIn, "1h");
+
+        assert.equal(
+            getJwtConfig().expiresIn,
+            "1h"
+        );
 
         process.env.JWT_EXPIRES_IN = "15m";
-        assert.equal(getJwtConfig().expiresIn, "15m");
+
+        assert.equal(
+            getJwtConfig().expiresIn,
+            "15m"
+        );
     } finally {
         if (original === undefined) {
             delete process.env.JWT_EXPIRES_IN;

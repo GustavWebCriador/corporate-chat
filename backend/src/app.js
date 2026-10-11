@@ -2,8 +2,10 @@ const express = require("express");
 const cors = require("cors");
 
 const { createRouter } = require("./routes/v1");
+
 const { healthService: defaultHealthService } = require("./services/health/healthService");
 const { authService: defaultAuthService } = require("./services/auth/authService");
+const {userService: defaultUserService, } = require("./services/users/userService");
 const notFound = require("./middlewares/notFound");
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -28,6 +30,7 @@ function buildCorsOptions() {
 function createApp({
     healthService = defaultHealthService,
     authService = defaultAuthService,
+    userService = defaultUserService,
 } = {}) {
     const app = express();
 
@@ -36,7 +39,7 @@ function createApp({
     app.use(cors(buildCorsOptions()));
     app.use(express.json({ limit: "100kb" }));
 
-    app.use(API_PREFIX, createRouter({ healthService, authService }));
+    app.use(API_PREFIX, createRouter({ healthService, authService, userService }));
 
     app.use(notFound);
     app.use(errorHandler);

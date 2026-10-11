@@ -15,6 +15,13 @@ O projeto utiliza uma arquitetura de persistência híbrida:
 > **Status da persistência:** infraestrutura de persistência implementada com PostgreSQL e MongoDB, migrations, seeders, constraints, índices, ambiente reproduzível, massa DEV idempotente, testes automatizados de integridade, integração lógica entre bancos, consultas críticas, rastreabilidade e evidências técnicas.
 ```
 ---
+## Documentação da API
+
+A documentação técnica da API do Corporate Chat está disponível nos seguintes documentos:
+
+- [Visão geral da API](docs/api-docs/README.md)
+- [Autenticação e gerenciamento de sessões](docs/api-docs/AUTHENTICATION.md)
+- [Guia de testes automatizados](docs/api-docs/TESTING.md)
 
 ## Tecnologias utilizadas
 
