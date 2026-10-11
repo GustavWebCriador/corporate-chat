@@ -1,9 +1,7 @@
-process.env.NODE_ENV =
-    "test";
+process.env.NODE_ENV = "test";
 
 process.env.JWT_SECRET =
     "segredo-de-teste-com-mais-de-trinta-e-dois-caracteres";
-
 
 const test =
     require(
@@ -49,6 +47,12 @@ const {
 } = require(
     "../../src/services/health/healthService"
 );
+
+const {
+    createMockAuthSessionRepository,
+} = require("../helpers/mockAuthSessionRepository");
+
+
 
 const passwordHasher = {
 
@@ -398,17 +402,17 @@ function close(
 async function createTestContext() {
 
     const repository =
-        createMemoryUserRepository();
+    createMemoryUserRepository();
 
+    const sessionRepository =
+    createMockAuthSessionRepository();
 
     const authService =
-        createAuthService({
-
-            userRepository:
-                repository,
-
-            passwordHasher,
-        });
+    createAuthService({
+        userRepository: repository,
+        sessionRepository,
+        passwordHasher,
+    });
 
 
     const userService =
@@ -453,8 +457,6 @@ async function createTestContext() {
         await listen(
             app
         );
-
-
     return {
 
         repository,
