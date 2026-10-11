@@ -2,6 +2,9 @@ const bcrypt = require("bcryptjs");
 
 const AppError = require("../../errors/AppError");
 const { signAccessToken, verifyAccessToken } = require("../../config/jwt");
+const { createUserRepository, } = require("../../repositories/postgres/userRepository");
+const { randomUUID } = require("node:crypto");
+const { createAuthSessionRepository, } = require("../../repositories/postgres/authSessionRepository");
 
 const EMAIL_MAX_LENGTH = 150; // RI02 (DER v1.3, PER-02)
 const PASSWORD_MAX_LENGTH = 128;
@@ -19,44 +22,6 @@ const DUMMY_HASH =
  * Acesso a dados do PostgreSQL. Os models são carregados sob demanda para que
  * importar este módulo (por exemplo nos testes) não abra conexão com o banco.
  */
-function createUserRepository() {
-    function models() {
-        return require("../../models/postgres/Index");
-    }
-
-    return {
-        async findByEmail(email) {
-            const { User, sequelize } = models();
-
-            const user = await User.findOne({
-                where: sequelize.where(
-                    sequelize.fn("lower", sequelize.col("email")),
-                    email
-                ),
-            });
-
-            return user ? user.get({ plain: true }) : null;
-        },
-
-        async findById(userId) {
-            const { User } = models();
-
-            const user = await User.findByPk(userId);
-
-            return user ? user.get({ plain: true }) : null;
-        },
-
-        async touchLastLogin(userId, date) {
-            const { User } = models();
-
-            // silent: não altera updated_at só porque o usuário fez login.
-            await User.update(
-                { last_login_at: date },
-                { where: { user_id: userId }, silent: true }
-            );
-        },
-    };
-}
 
 function toPublicUser(user) {
     return {
@@ -104,6 +69,7 @@ function validateCredentials(input) {
 
 function createAuthService({
     userRepository = createUserRepository(),
+    sessionRepository = createAuthSessionRepository(),
     passwordHasher = bcrypt,
 } = {}) {
     /**
@@ -134,15 +100,26 @@ function createAuthService({
         }
 
         // Assina antes de gravar: se o JWT estiver mal configurado, nada é alterado.
+        const sessionId = randomUUID();
+
         const token = signAccessToken({
             userId: user.user_id,
             isAdmin: user.is_admin,
+            sessionId,
         });
 
         const { exp, iat } = verifyAccessToken(token);
 
-        await userRepository.touchLastLogin(user.user_id, new Date());
+        await sessionRepository.createSession({
+            sessionId,
+            userId: user.user_id,
+            expiresAt: new Date(exp * 1000),
+        });
 
+        await userRepository.touchLastLogin(
+            user.user_id,
+            new Date()
+        );
         return {
             token,
             tokenType: "Bearer",
@@ -183,6 +160,44 @@ function createAuthService({
         if (typeof payload.sub !== "string" || !UUID_REGEX.test(payload.sub)) {
             throw AppError.unauthorized("Token inválido.", "TOKEN_INVALID");
         }
+        if (
+            typeof payload.jti !== "string" ||
+            !UUID_REGEX.test(payload.jti)
+        ) {
+            throw AppError.unauthorized(
+                "Token inválido.",
+                "TOKEN_INVALID"
+            );
+        }
+
+        const session =
+            await sessionRepository.findSessionById(
+                payload.jti
+            );
+
+        if (
+            !session ||
+            session.user_id !== payload.sub
+        ) {
+            throw AppError.unauthorized(
+                "Sessão inválida.",
+                "TOKEN_INVALID"
+            );
+        }
+
+        if (session.revoked_at !== null) {
+            throw AppError.unauthorized(
+                "Sessão encerrada.",
+                "TOKEN_REVOKED"
+            );
+        }
+
+        if (new Date(session.expires_at).getTime() <= Date.now()) {
+            throw AppError.unauthorized(
+                "Token expirado.",
+                "TOKEN_EXPIRED"
+            );
+        }
 
         const user = await userRepository.findById(payload.sub);
 
@@ -196,12 +211,35 @@ function createAuthService({
 
         return toPublicUser(user);
     }
+async function logout(token) {
+    // Valida assinatura, expiração, usuário e sessão atual.
+    await authenticateToken(token);
 
-    return { login, authenticateToken };
+    // Só extraímos o jti após a validação completa.
+    const payload = verifyAccessToken(token);
+
+    const revoked = await sessionRepository.revokeSession({
+        sessionId: payload.jti,
+        userId: payload.sub,
+    });
+
+    if (!revoked) {
+        throw AppError.unauthorized(
+            "Sessão encerrada ou inválida.",
+            "TOKEN_REVOKED"
+        );
+    }
+}
+
+
+    return {
+        login,
+        authenticateToken,
+        logout,
+    };
 }
 
 module.exports = {
     createAuthService,
-    createUserRepository,
     authService: createAuthService(),
 };
