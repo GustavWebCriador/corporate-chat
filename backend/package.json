@@ -23,7 +23,7 @@
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "postgres:test": "node database/postgres/health-test.js",
     "mongo:indexes": "node database/mongodb/sync-indexes.js",
-    "mongo:seed": "node database/mongodb/seeds/development.js",
+    "mongo:seed": "node ../database/mongodb/seeds/development.js",
     "mongo:test": "node database/mongodb/smoke-test.js",
     "mongo:health": "node database/mongodb/health-test.js",
     "seed:dev": "node scripts/seed-dev.js",

@@ -102,7 +102,7 @@ run(
  * MongoDB fixtures
  */
 run(
-    "node database/mongodb/seeds/development.js"
+    "node ../database/mongodb/seeds/development.js"
 );
 
 
