@@ -38,6 +38,13 @@ Os testes de integração utilizam PostgreSQL e MongoDB reais no ambiente de des
 | `tests/helpers/mockAuthSessionRepository.js` | Simulação de sessões persistidas |
 | `database/tests/integration/auth-sessions-integration.test.js` | Integração real com PostgreSQL |
 
+### Arquivos relacionados às conversas (BE-07)
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `tests/api/conversations.test.js` | Contratos HTTP, segurança JWT e cenários negativos de `/conversations/private`, `/conversations` e `/conversations/:id/messages` |
+| `database/tests/integration/conversations-integration.test.js` | Integração end-to-end real (JWT + PostgreSQL + MongoDB): criação, listagem, histórico e restrições de acesso |
+
 ### Arquivos relacionados à solicitação de cadastro
 
 | Arquivo | Responsabilidade |
@@ -91,6 +98,7 @@ A suíte contempla:
 - Endpoint de saúde da aplicação.
 - Solicitação de cadastro.
 - Aprovação e rejeição por administrador.
+- Conversas privadas, listagem e histórico de mensagens (BE-07).
 
 ### 5.3. Testes de integração
 
@@ -122,7 +130,9 @@ Durante o desenvolvimento, é possível executar somente os testes necessários.
 | Autenticação | `node --test --test-concurrency=1 tests/api/auth.test.js` |
 | Administração de usuários | `node --test --test-concurrency=1 tests/api/admin-users.test.js` |
 | Logout | `node --test --test-concurrency=1 tests/api/logout.test.js` |
+| Conversas (BE-07) | `node --test --test-concurrency=1 tests/api/conversations.test.js` |
 | Integração de sessões | `node --test --test-concurrency=1 database/tests/integration/auth-sessions-integration.test.js` |
+| Integração de conversas (BE-07) | `node --test --test-concurrency=1 database/tests/integration/conversations-integration.test.js` |
 | Solicitação de cadastro — API | `node --test --test-concurrency=1 tests/api/registration-requests.test.js` |
 | Solicitação de cadastro — integração | `node --test --test-concurrency=1 database/tests/integration/registration-requests-integration.test.js` |
 | Integridade PostgreSQL | `node --test --test-concurrency=1 database/tests/integrity/postgres-integrity.test.js` |
@@ -183,6 +193,45 @@ Os cenários implementados verificam:
 7. Rejeição de sessões vinculadas a usuários inexistentes.
 
 Os testes criam registros temporários e executam limpeza dos registros identificados durante a execução.
+
+## 9.1. Testes de conversas (BE-07)
+
+Os endpoints de conversas são cobertos em dois níveis.
+
+### API (`tests/api/conversations.test.js`)
+
+Valida os contratos HTTP com serviços simulados:
+
+- criação de conversa privada (201);
+- listagem de conversas do usuário autenticado (200);
+- histórico com paginação por cursor (200);
+- criação sem `otherUserId` (400 `OTHER_USER_ID_REQUIRED`);
+- JSON malformado (400 `INVALID_JSON`);
+- JWT ausente, inválido ou mal formatado nos três endpoints (401);
+- rejeições do serviço sem vazamento de detalhes (500 `INTERNAL_ERROR`);
+- restrição de histórico: usuário não membro não recebe mensagens.
+
+### Integração (`database/tests/integration/conversations-integration.test.js`)
+
+Executa requisições HTTP reais contra a aplicação montada com os serviços
+reais de autenticação e conversas, utilizando PostgreSQL e MongoDB de
+desenvolvimento. O fluxo real de login emite JWT e cria sessão em
+`auth_sessions`.
+
+Cenários cobertos:
+
+1. Criação de conversa privada cria o documento e os dois membros.
+2. Criação repetida para o mesmo par reutiliza o documento (chave canônica).
+3. Listagem retorna apenas conversas do usuário autenticado (isolamento).
+4. Histórico respeita ordem cronológica, `limit` e cursor (`before`).
+5. Usuário autenticado fora da conversa não acessa o histórico.
+6. Membro com status `LEFT` não lista a conversa nem acessa o histórico.
+7. Token inválido é rejeitado (401 `TOKEN_INVALID`) nos três endpoints.
+8. Requisição sem token é rejeitada (401 `TOKEN_MISSING`) nos três endpoints.
+
+O teste executa somente em ambiente `development` e remove os registros
+criados durante a execução (usuários, sessões, conversas, membros e
+mensagens).
 
 ## 10. Testes da solicitação de cadastro
 
@@ -249,16 +298,16 @@ Arquivos `.env` com credenciais não devem ser incluídos no repositório.
 
 ## 11. Resultado da validação integrada
 
-**Referência:** execução de `npm test` em 10/10/2026, no ambiente local de desenvolvimento.
-execução final após reconstrução completa do ambiente de desenvolvimento
+**Referência:** execução de `npm test` em 12/10/2026, no ambiente local de desenvolvimento.
+execução após a expansão da cobertura BE-07 (conversas privadas e histórico)
 
 | Suíte | Executados | Aprovados | Falhas |
 |---|---:|---:|---:|
 | Integridade PostgreSQL e MongoDB | 37 | 37 | 0 |
-| Integração com persistência | 22 | 22 | 0 |
+| Integração com persistência | 30 | 30 | 0 |
 | Consultas de persistência | 5 | 5 | 0 |
-| API e autenticação | 76 | 76 | 0 |
-| **Total** | **140** | **140** | **0** |
+| API e autenticação | 92 | 92 | 0 |
+| **Total** | **164** | **164** | **0** |
 
 
 A execução também confirmou:
@@ -268,6 +317,7 @@ A execução também confirmou:
 - Disponibilidade da comunicação entre PostgreSQL e MongoDB.
 - Execução dos testes de sessões com PostgreSQL real.
 - Ausência de falhas na suíte automatizada existente.
+- Cobertura BE-07: contratos HTTP, segurança JWT, cenários negativos e integração end-to-end dos endpoints de conversas e histórico.
 
 Esse resultado representa a situação da versão validada na data indicada e deverá ser atualizado conforme novos testes forem acrescentados.
 
