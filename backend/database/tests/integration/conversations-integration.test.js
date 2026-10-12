@@ -858,12 +858,12 @@ test(
          */
         assert.equal(
             response.status,
-            500
+            403
         );
 
         assert.equal(
             body.error.code,
-            "INTERNAL_ERROR"
+            "USER_NOT_ACTIVE_MEMBER"
         );
 
         /*
@@ -952,12 +952,12 @@ test(
 
         assert.equal(
             historyResponse.status,
-            500
+            403
         );
 
         assert.equal(
             historyBody.error.code,
-            "INTERNAL_ERROR"
+            "USER_NOT_ACTIVE_MEMBER"
         );
 
         assert.equal(

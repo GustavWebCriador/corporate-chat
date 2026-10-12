@@ -394,10 +394,10 @@ test("BE-07: criar conversa privada com JSON malformado retorna 400 INVALID_JSON
     });
 });
 
-test("BE-07: criar conversa privada com usuário inativo retorna 500 sem vazar detalhes", async () => {
+test("BE-07: criar conversa privada com usuário inativo retorna 403", async () => {
     await withApi(async ({ baseUrl, calls, failures }) => {
         failures.createPrivate = new PersistenceIntegrationError(
-            "USERS_INACTIVE",
+            "USER_INACTIVE",
             "Existem usuários inativos.",
             {
                 user_ids: [OTHER_USER_ID],
@@ -413,11 +413,11 @@ test("BE-07: criar conversa privada com usuário inativo retorna 500 sem vazar d
 
         const body = await response.json();
 
-        assert.equal(response.status, 500);
-        assert.equal(body.error.code, "INTERNAL_ERROR");
+        assert.equal(response.status, 403);
+        assert.equal(body.error.code, "USER_INACTIVE");
         assert.equal(
             body.error.message,
-            "Erro interno do servidor."
+            "Existem usuários inativos."
         );
         assert.equal(
             JSON.stringify(body).includes("USERS_INACTIVE"),
@@ -426,7 +426,7 @@ test("BE-07: criar conversa privada com usuário inativo retorna 500 sem vazar d
     });
 });
 
-test("BE-07: histórico com conversationId inválido é rejeitado pelo serviço", async () => {
+test("BE-07: histórico com conversationId inválido retorna 400", async () => {
     await withApi(async ({ baseUrl, calls, failures }) => {
         failures.history = new PersistenceIntegrationError(
             "INVALID_CONVERSATION_ID",
@@ -439,8 +439,8 @@ test("BE-07: histórico com conversationId inválido é rejeitado pelo serviço"
 
         const body = await response.json();
 
-        assert.equal(response.status, 500);
-        assert.equal(body.error.code, "INTERNAL_ERROR");
+        assert.equal(response.status, 400);
+        assert.equal(body.error.code, "INVALID_CONVERSATION_ID");
         assert.equal(body.data, undefined);
 
         /*
@@ -456,7 +456,7 @@ test("BE-07: histórico com conversationId inválido é rejeitado pelo serviço"
     });
 });
 
-test("BE-07: histórico com cursor de paginação inválido é rejeitado pelo serviço", async () => {
+test("BE-07: histórico com cursor de paginação inválido retorna 400", async () => {
     await withApi(async ({ baseUrl, calls, failures }) => {
         failures.history = new PersistenceIntegrationError(
             "INVALID_QUERY_CURSOR",
@@ -470,15 +470,15 @@ test("BE-07: histórico com cursor de paginação inválido é rejeitado pelo se
 
         const body = await response.json();
 
-        assert.equal(response.status, 500);
-        assert.equal(body.error.code, "INTERNAL_ERROR");
+        assert.equal(response.status, 400);
+        assert.equal(body.error.code, "INVALID_QUERY_CURSOR");
         assert.equal(body.data, undefined);
         assert.equal(calls.history.length, 1);
         assert.equal(calls.history[0].before, "cursor-invalido");
     });
 });
 
-test("BE-07 SECURITY: histórico nega acesso de usuário não membro sem vazar mensagens", async () => {
+test("BE-07: histórico sem permissão retorna 403", async () => {
     await withApi(async ({ baseUrl, calls, failures }) => {
         failures.history = new PersistenceIntegrationError(
             "USER_NOT_ACTIVE_MEMBER",
@@ -495,11 +495,11 @@ test("BE-07 SECURITY: histórico nega acesso de usuário não membro sem vazar m
 
         const body = await response.json();
 
-        assert.equal(response.status, 500);
-        assert.equal(body.error.code, "INTERNAL_ERROR");
+        assert.equal(response.status, 403);
+        assert.equal(body.error.code, "USER_NOT_ACTIVE_MEMBER");
         assert.equal(
             body.error.message,
-            "Erro interno do servidor."
+            "Usuário não é membro ativo da conversa."
         );
 
         /*
