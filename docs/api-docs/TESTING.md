@@ -46,6 +46,14 @@ Os testes de integração utilizam PostgreSQL e MongoDB reais no ambiente de des
 | `database/tests/integration/registration-requests-integration.test.js` | Persistência real, rollback e concorrência |
 | `database/tests/integrity/postgres-integrity.test.js` | Constraints e regras de integridade PostgreSQL |
 
+### Arquivos relacionados ao dashboard
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `tests/api/dashboard.test.js` | Contrato HTTP do dashboard |
+| `database/tests/integration/dashboard-integration.test.js` | Integração real PostgreSQL + MongoDB |
+
+
 ## 4. Pré-requisitos
 
 Para executar a suíte completa:
@@ -98,8 +106,9 @@ A suíte contempla:
 
 Executa os arquivos `database/tests/integration/*.test.js`.
 
-A suíte verifica as integrações de persistência existentes e o gerenciamento real das sessões integrações de persistência, gerenciamento de sessões
-e fluxo de solicitação de cadastro com PostgreSQL real
+A suíte verifica as integrações reais de persistência, incluindo gerenciamento de sessões, fluxo de solicitação de cadastro e composição do dashboard com PostgreSQL e MongoDB.
+
+
 
 ### 5.4. Testes de integridade
 
@@ -126,6 +135,8 @@ Durante o desenvolvimento, é possível executar somente os testes necessários.
 | Solicitação de cadastro — API | `node --test --test-concurrency=1 tests/api/registration-requests.test.js` |
 | Solicitação de cadastro — integração | `node --test --test-concurrency=1 database/tests/integration/registration-requests-integration.test.js` |
 | Integridade PostgreSQL | `node --test --test-concurrency=1 database/tests/integrity/postgres-integrity.test.js` |
+| Dashboard — API | `node --test --test-concurrency=1 tests/api/dashboard.test.js` |
+| Dashboard — integração | `node --test --test-concurrency=1 database/tests/integration/dashboard-integration.test.js` |
 
 O uso de `--test-concurrency=1` mantém a execução sequencial dos arquivos selecionados, reduzindo interferências entre testes que utilizam recursos ou configurações compartilhadas.
 
@@ -230,8 +241,38 @@ Ele depende da presença do usuário de desenvolvimento definido no código de t
 Antes da execução, confirme que o PostgreSQL configurado corresponde ao banco de desenvolvimento e não a um banco de produção.
 
 A execução da suíte de testes de integração não substitui os procedimentos de backup e isolamento do ambiente.
+## 11. Testes do dashboard
 
-## 10. Configuração do ambiente de testes
+A funcionalidade de dashboard possui cobertura de API e integração real.
+
+### API
+
+O arquivo `dashboard.test.js` possui 12 cenários, incluindo:
+
+- autenticação obrigatória;
+- acesso por usuário comum;
+- contatos ACTIVE;
+- exclusão do próprio usuário;
+- proteção contra exposição de dados sensíveis;
+- identificação de PRIVATE;
+- identificação de GROUP;
+- última mensagem;
+- validação de limit;
+- proteção contra tentativa de substituir a identidade autenticada.
+
+### Integração
+
+O arquivo `dashboard-integration.test.js` possui 4 cenários executados com PostgreSQL e MongoDB reais.
+
+A suíte valida:
+
+- contatos ACTIVE e exclusão do próprio usuário;
+- resolução pública de UUIDs;
+- integração entre PostgreSQL e MongoDB;
+- composição de PRIVATE e GROUP;
+- preservação da identificação de participante INACTIVE no histórico.
+
+## 12. Configuração do ambiente de testes
 
 Os testes da API utilizam valores fictícios para configurações sensíveis, incluindo `JWT_SECRET`.
 
@@ -247,18 +288,17 @@ Os testes que dependem de PostgreSQL real utilizam a configuração do ambiente 
 
 Arquivos `.env` com credenciais não devem ser incluídos no repositório.
 
-## 11. Resultado da validação integrada
+## 13. Resultado da validação integrada
 
-**Referência:** execução de `npm test` em 10/10/2026, no ambiente local de desenvolvimento.
-execução final após reconstrução completa do ambiente de desenvolvimento
+**Referência:** validação final após reconstrução completa do ambiente de desenvolvimento em 12/10/2026.
 
 | Suíte | Executados | Aprovados | Falhas |
 |---|---:|---:|---:|
 | Integridade PostgreSQL e MongoDB | 37 | 37 | 0 |
-| Integração com persistência | 22 | 22 | 0 |
+| Integração com persistência | 26 | 26 | 0 |
 | Consultas de persistência | 5 | 5 | 0 |
-| API e autenticação | 76 | 76 | 0 |
-| **Total** | **140** | **140** | **0** |
+| API | 88 | 88 | 0 |
+| **Total** | **156** | **156** | **0** |
 
 
 A execução também confirmou:
@@ -271,7 +311,7 @@ A execução também confirmou:
 
 Esse resultado representa a situação da versão validada na data indicada e deverá ser atualizado conforme novos testes forem acrescentados.
 
-## 12. Procedimento recomendado antes de Pull Requests
+## 14. Procedimento recomendado antes de Pull Requests
 
 Antes de integrar alterações ao repositório principal:
 
@@ -287,7 +327,7 @@ Antes de integrar alterações ao repositório principal:
 
 A aprovação dos testes constitui uma evidência de validação, mas não substitui a revisão de código e de segurança.
 
-## 13. Evolução dos testes
+## 15. Evolução dos testes
 
 Sempre que uma nova funcionalidade for incorporada, deverá ser avaliada a necessidade de adicionar:
 
@@ -300,10 +340,11 @@ Sempre que uma nova funcionalidade for incorporada, deverá ser avaliada a neces
 
 A suíte automatizada deverá evoluir juntamente com os serviços e contratos da API.
 
-## 14. Documentação relacionada
+## 16. Documentação relacionada
 
 - [Visão geral da API](README.md)
 - [Autenticação e gerenciamento de sessões](AUTHENTICATION.md)
 - [Arquitetura de persistência](../persistence/README.md)
+- [Dashboard](DASHBOARD.md)
 
 A manutenção contínua desses documentos contribui para a rastreabilidade das decisões técnicas, a padronização do desenvolvimento e a qualidade das entregas do Corporate Chat.
