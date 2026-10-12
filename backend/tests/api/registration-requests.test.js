@@ -228,6 +228,16 @@ async function request(baseUrl, path, { method = "GET", token, body } = {}) {
     const text = await response.text();
     return { status: response.status, body: text ? JSON.parse(text) : null };
 }
+function emailWithLength(length) {
+    const domain = "@test.local";
+
+    return (
+        "a".repeat(
+            length - domain.length
+        ) +
+        domain
+    );
+}
 
 const PUBLIC = "/api/v1/registration-requests";
 const ADMIN = "/api/v1/admin/registration-requests";
@@ -362,60 +372,383 @@ test("aprovar cria usuário ACTIVE que consegue fazer login e bloqueia nova aná
     }
 });
 
-test("rejeitar exige motivo, não cria usuário e permite nova solicitação do e-mail", async () => {
-    const ctx = await createTestContext();
-    try {
-        const body = { name: "Rejeitada", email: "rej@corp.local" };
-        const created = await request(ctx.baseUrl, PUBLIC, { method: "POST", body });
-        const requestId = created.body.data.request.request_id;
-        const token = await login(ctx.baseUrl, "admin@corp.local");
-        const usersBefore = ctx.userRepository.rows.size;
+test(
+    "rejeitar exige motivo, não cria usuário e permite nova solicitação do e-mail",
+    async () => {
 
-        const noReason = await request(ctx.baseUrl, `${ADMIN}/${requestId}/reject`, {
-            method: "POST",
-            token,
-            body: {},
-        });
-        assert.equal(noReason.status, 400);
+        const ctx =
+            await createTestContext();
 
-        const rejected = await request(ctx.baseUrl, `${ADMIN}/${requestId}/reject`, {
-            method: "POST",
-            token,
-            body: { reason: "Fora do quadro" },
-        });
-        assert.equal(rejected.status, 200);
-        assert.equal(rejected.body.data.request.status, "REJECTED");
-        assert.equal(rejected.body.data.request.rejection_reason, "Fora do quadro");
-        assert.equal(ctx.userRepository.rows.size, usersBefore);
+        try {
 
-        const retry = await request(ctx.baseUrl, PUBLIC, { method: "POST", body });
-        assert.equal(retry.status, 201);
-    } finally {
-        await close(ctx.server);
+            const body = {
+                name: "Rejeitada",
+                email: "rej@corp.local",
+            };
+
+            const created =
+                await request(
+                    ctx.baseUrl,
+                    PUBLIC,
+                    {
+                        method: "POST",
+                        body,
+                    }
+                );
+
+            const requestId =
+                created.body.data.request.request_id;
+
+            const token =
+                await login(
+                    ctx.baseUrl,
+                    "admin@corp.local"
+                );
+
+            const usersBefore =
+                ctx.userRepository.rows.size;
+
+
+            const noReason =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/${requestId}/reject`,
+                    {
+                        method: "POST",
+                        token,
+                        body: {},
+                    }
+                );
+
+            assert.equal(
+                noReason.status,
+                400
+            );
+
+
+            const rejected =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/${requestId}/reject`,
+                    {
+                        method: "POST",
+                        token,
+                        body: {
+                            reason: "Fora do quadro",
+                        },
+                    }
+                );
+
+            assert.equal(
+                rejected.status,
+                200
+            );
+
+            assert.equal(
+                rejected.body.data.request.status,
+                "REJECTED"
+            );
+
+            assert.equal(
+                rejected.body.data.request.rejection_reason,
+                "Fora do quadro"
+            );
+
+            assert.equal(
+                ctx.userRepository.rows.size,
+                usersBefore
+            );
+
+
+            /*
+             * Uma solicitação já REJECTED
+             * não pode ser aprovada depois.
+             */
+            const approveAfterReject =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/${requestId}/approve`,
+                    {
+                        method: "POST",
+                        token,
+                        body: {
+                            password: "SenhaInicial1",
+                        },
+                    }
+                );
+
+            assert.equal(
+                approveAfterReject.status,
+                409
+            );
+
+            assert.equal(
+                approveAfterReject.body.error.code,
+                "REGISTRATION_REQUEST_ALREADY_REVIEWED"
+            );
+
+
+            /*
+             * Após a rejeição, o mesmo e-mail
+             * pode gerar uma nova solicitação.
+             */
+            const retry =
+                await request(
+                    ctx.baseUrl,
+                    PUBLIC,
+                    {
+                        method: "POST",
+                        body,
+                    }
+                );
+
+            assert.equal(
+                retry.status,
+                201
+            );
+
+        } finally {
+
+            await close(
+                ctx.server
+            );
+        }
     }
-});
+);
 
-test("aprovar/rejeitar valida UUID e retorna 404 para solicitação inexistente", async () => {
-    const ctx = await createTestContext();
-    try {
-        const token = await login(ctx.baseUrl, "admin@corp.local");
+test(
+    "aprovar/rejeitar valida UUID e retorna 404 para solicitação inexistente",
+    async () => {
 
-        const invalid = await request(ctx.baseUrl, `${ADMIN}/nao-e-uuid/approve`, {
-            method: "POST",
-            token,
-            body: { password: "SenhaInicial1" },
-        });
-        assert.equal(invalid.status, 400);
-        assert.equal(invalid.body.error.code, "INVALID_REQUEST_ID");
+        const ctx =
+            await createTestContext();
 
-        const missing = await request(ctx.baseUrl, `${ADMIN}/${randomUUID()}/reject`, {
-            method: "POST",
-            token,
-            body: { reason: "x" },
-        });
-        assert.equal(missing.status, 404);
-        assert.equal(missing.body.error.code, "REGISTRATION_REQUEST_NOT_FOUND");
-    } finally {
-        await close(ctx.server);
+        try {
+
+            const token =
+                await login(
+                    ctx.baseUrl,
+                    "admin@corp.local"
+                );
+
+            const invalid =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/nao-e-uuid/approve`,
+                    {
+                        method: "POST",
+                        token,
+                        body: {
+                            password: "SenhaInicial1",
+                        },
+                    }
+                );
+
+            assert.equal(
+                invalid.status,
+                400
+            );
+
+            assert.equal(
+                invalid.body.error.code,
+                "INVALID_REQUEST_ID"
+            );
+
+
+            const missing =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/${randomUUID()}/reject`,
+                    {
+                        method: "POST",
+                        token,
+                        body: {
+                            reason: "x",
+                        },
+                    }
+                );
+
+            assert.equal(
+                missing.status,
+                404
+            );
+
+            assert.equal(
+                missing.body.error.code,
+                "REGISTRATION_REQUEST_NOT_FOUND"
+            );
+
+        } finally {
+
+            await close(
+                ctx.server
+            );
+        }
     }
-});
+);
+
+test(
+    "solicitação aceita e-mail com 150 caracteres e rejeita 151",
+
+    async () => {
+
+        const ctx =
+            await createTestContext();
+
+        try {
+
+            const valid =
+                await request(
+                    ctx.baseUrl,
+                    PUBLIC,
+                    {
+                        method: "POST",
+
+                        body: {
+                            name: "Limite Email",
+                            email: emailWithLength(150),
+                        },
+                    }
+                );
+
+
+            assert.equal(
+                valid.status,
+                201
+            );
+
+
+            const invalid =
+                await request(
+                    ctx.baseUrl,
+                    PUBLIC,
+                    {
+                        method: "POST",
+
+                        body: {
+                            name: "Limite Email",
+                            email: emailWithLength(151),
+                        },
+                    }
+                );
+
+
+            assert.equal(
+                invalid.status,
+                400
+            );
+
+            assert.equal(
+                invalid.body.error.code,
+                "VALIDATION_ERROR"
+            );
+
+        } finally {
+
+            await close(
+                ctx.server
+            );
+        }
+    }
+);
+test(
+    "rejeição aceita motivo com 500 caracteres e rejeita 501",
+
+    async () => {
+
+        const ctx =
+            await createTestContext();
+
+        try {
+
+            const token =
+                await login(
+                    ctx.baseUrl,
+                    "admin@corp.local"
+                );
+
+
+            const first =
+                await request(
+                    ctx.baseUrl,
+                    PUBLIC,
+                    {
+                        method: "POST",
+
+                        body: {
+                            name: "Motivo 500",
+                            email: "motivo500@corp.local",
+                        },
+                    }
+                );
+
+
+            const accepted =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/${first.body.data.request.request_id}/reject`,
+                    {
+                        method: "POST",
+                        token,
+
+                        body: {
+                            reason: "x".repeat(500),
+                        },
+                    }
+                );
+
+
+            assert.equal(
+                accepted.status,
+                200
+            );
+
+
+            const second =
+                await request(
+                    ctx.baseUrl,
+                    PUBLIC,
+                    {
+                        method: "POST",
+
+                        body: {
+                            name: "Motivo 501",
+                            email: "motivo501@corp.local",
+                        },
+                    }
+                );
+
+
+            const rejected =
+                await request(
+                    ctx.baseUrl,
+                    `${ADMIN}/${second.body.data.request.request_id}/reject`,
+                    {
+                        method: "POST",
+                        token,
+
+                        body: {
+                            reason: "x".repeat(501),
+                        },
+                    }
+                );
+
+
+            assert.equal(
+                rejected.status,
+                400
+            );
+
+            assert.equal(
+                rejected.body.error.code,
+                "VALIDATION_ERROR"
+            );
+
+        } finally {
+
+            await close(
+                ctx.server
+            );
+        }
+    }
+);
