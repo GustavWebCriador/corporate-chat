@@ -6,11 +6,11 @@ const { createRouter } = require("./routes/v1");
 const { healthService: defaultHealthService } = require("./services/health/healthService");
 const { authService: defaultAuthService } = require("./services/auth/authService");
 const {userService: defaultUserService, } = require("./services/users/userService");
-const {
-    registrationRequestService: defaultRegistrationRequestService,
-} = require("./services/registrationRequests/registrationRequestService");
+const {registrationRequestService: defaultRegistrationRequestService,} = require("./services/registrationRequests/registrationRequestService");
+const {dashboardService: defaultDashboardService, } = require("./services/dashboard/dashboardService");
 const notFound = require("./middlewares/notFound");
 const errorHandler = require("./middlewares/errorHandler");
+
 
 const API_PREFIX = "/api/v1";
 
@@ -35,6 +35,7 @@ function createApp({
     authService = defaultAuthService,
     userService = defaultUserService,
     registrationRequestService = defaultRegistrationRequestService,
+    dashboardService = defaultDashboardService,
 } = {}) {
     const app = express();
 
@@ -48,6 +49,7 @@ function createApp({
         authService,
         userService,
         registrationRequestService,
+        dashboardService,
     }));
 
     app.use(notFound);

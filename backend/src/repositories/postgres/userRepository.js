@@ -167,8 +167,166 @@ async function findAll(
             })
     );
 }
+/**
+ * Lista contatos disponíveis para o dashboard.
+ *
+ * Regras:
+ * - somente usuários ACTIVE;
+ * - exclui o próprio usuário;
+ * - retorna somente dados públicos;
+ * - ordena por nome.
+ */
+async function findActiveContacts(
+    {
+        excludeUserId,
+    } = {},
+    options = {}
+) {
+
+    const {
+        User,
+    } = models();
+
+    const {
+        Op,
+    } = require(
+        "sequelize"
+    );
 
 
+    const where = {
+        status:
+            "ACTIVE",
+    };
+
+
+    if (excludeUserId) {
+
+        where.user_id = {
+            [Op.ne]:
+                excludeUserId,
+        };
+    }
+
+
+    const users =
+        await User.findAll({
+
+            where,
+
+            attributes: [
+                "user_id",
+                "name",
+                "email",
+                "status",
+            ],
+
+            order: [
+                [
+                    "name",
+                    "ASC",
+                ],
+                [
+                    "user_id",
+                    "ASC",
+                ],
+            ],
+
+            transaction:
+                options.transaction,
+        });
+
+
+    return users.map(
+        user =>
+            user.get({
+                plain: true,
+            })
+    );
+}
+/**
+ * Busca dados públicos de usuários
+ * a partir de uma lista de UUIDs.
+ *
+ * Utilizado para resolver referências
+ * PostgreSQL existentes nas conversas MongoDB.
+ */
+async function findPublicByIds(
+    userIds,
+    options = {}
+) {
+
+    if (
+        !Array.isArray(userIds) ||
+        userIds.length === 0
+    ) {
+
+        return [];
+    }
+
+
+    const {
+        User,
+    } = models();
+
+    const {
+        Op,
+    } = require(
+        "sequelize"
+    );
+
+
+    /*
+     * Remove UUIDs duplicados antes
+     * de consultar o PostgreSQL.
+     */
+    const uniqueUserIds = [
+        ...new Set(
+            userIds
+        ),
+    ];
+
+
+    const users =
+        await User.findAll({
+
+            where: {
+                user_id: {
+                    [Op.in]:
+                        uniqueUserIds,
+                },
+            },
+
+            attributes: [
+                "user_id",
+                "name",
+                "email",
+                "status",
+            ],
+
+            order: [
+                [
+                    "name",
+                    "ASC",
+                ],
+                [
+                    "user_id",
+                    "ASC",
+                ],
+            ],
+
+            transaction:
+                options.transaction,
+        });
+
+
+    return users.map(
+        user =>
+            user.get({
+                plain: true,
+            })
+    );
+}
 /**
  * Cria usuário.
  */
@@ -277,19 +435,23 @@ async function updatePasswordHash(
 
     return {
 
-        findByEmail,
+    findByEmail,
 
-        findById,
+    findById,
 
-        findAll,
+    findAll,
 
-        create,
+    findActiveContacts,
 
-        updateStatus,
+    findPublicByIds,
 
-        updatePasswordHash,
+    create,
 
-        touchLastLogin,
+    updateStatus,
+
+    updatePasswordHash,
+
+    touchLastLogin,
     };
 }
 

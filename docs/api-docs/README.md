@@ -83,6 +83,7 @@ A API também possui funcionalidades administrativas para gerenciamento de usuá
 Essas operações são protegidas por autenticação e exigem permissões administrativas.
 
 Os caminhos e contratos completos desses endpoints devem ser consultados na implementação de `backend/src/routes/`.
+
 ### 6.4. Solicitação de cadastro
 
 O Corporate Chat permite que uma pessoa ainda não cadastrada solicite acesso ao sistema.
@@ -99,6 +100,20 @@ A solicitação não concede acesso automaticamente. Ela permanece pendente até
 Consulte a documentação detalhada:
 
 **[Solicitação de cadastro](REGISTRATION.md)**
+
+### 6.5. Dashboard
+
+Usuários autenticados podem consultar os dados necessários para montagem da área principal da aplicação.
+
+| Método | Endpoint | Acesso | Finalidade |
+|---|---|---|---|
+| GET | `/api/v1/dashboard` | Usuário autenticado | Consultar contatos e conversas do dashboard |
+
+A resposta diferencia conversas privadas e grupos e retorna somente dados públicos necessários à interface.
+
+Consulte a documentação detalhada:
+
+**[Dashboard](DASHBOARD.md)**
 
 
 ## 7. Autenticação e autorização
@@ -145,6 +160,7 @@ A aplicação possui testes automatizados para:
 - Gerenciamento de sessões e logout.
 - Tratamento de erros e validações da API.
 - Solicitação, aprovação e rejeição de cadastro.
+- Dashboard, contatos e composição entre PostgreSQL e MongoDB.
 
 Os testes da API utilizam o Node.js Test Runner. Os testes de integração de persistência executam operações controladas nos bancos do ambiente de desenvolvimento.
 
@@ -160,6 +176,7 @@ Consulte:
 | [Testes automatizados](TESTING.md) | Orientar a execução e validação dos testes |
 | [Documentação de persistência](../persistence/README.md) | Descrever a arquitetura e as operações de persistência |
 | [Solicitação de cadastro](REGISTRATION.md) | Descrever o fluxo de solicitação, aprovação, rejeição e criação do usuário |
+| [Dashboard](DASHBOARD.md) | Descrever o endpoint, contatos, conversas e regras de segurança do dashboard |
 
 ## 11. Evolução da documentação
 
