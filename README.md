@@ -21,6 +21,7 @@ A documentação técnica da API do Corporate Chat está disponível nos seguint
 
 - [Visão geral da API](docs/api-docs/README.md)
 - [Autenticação e gerenciamento de sessões](docs/api-docs/AUTHENTICATION.md)
+- [Solicitação de cadastro](docs/api-docs/REGISTRATION.md)
 - [Guia de testes automatizados](docs/api-docs/TESTING.md)
 
 ## Tecnologias utilizadas
