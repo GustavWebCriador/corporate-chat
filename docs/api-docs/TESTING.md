@@ -38,6 +38,14 @@ Os testes de integração utilizam PostgreSQL e MongoDB reais no ambiente de des
 | `tests/helpers/mockAuthSessionRepository.js` | Simulação de sessões persistidas |
 | `database/tests/integration/auth-sessions-integration.test.js` | Integração real com PostgreSQL |
 
+### Arquivos relacionados à solicitação de cadastro
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `tests/api/registration-requests.test.js` | Contratos HTTP da BE-05 |
+| `database/tests/integration/registration-requests-integration.test.js` | Persistência real, rollback e concorrência |
+| `database/tests/integrity/postgres-integrity.test.js` | Constraints e regras de integridade PostgreSQL |
+
 ## 4. Pré-requisitos
 
 Para executar a suíte completa:
@@ -81,6 +89,8 @@ A suíte contempla:
 - Tratamento de erros.
 - Validação de senhas.
 - Endpoint de saúde da aplicação.
+- Solicitação de cadastro.
+- Aprovação e rejeição por administrador.
 
 ### 5.3. Testes de integração
 
@@ -88,7 +98,8 @@ A suíte contempla:
 
 Executa os arquivos `database/tests/integration/*.test.js`.
 
-A suíte verifica as integrações de persistência existentes e o gerenciamento real das sessões.
+A suíte verifica as integrações de persistência existentes e o gerenciamento real das sessões integrações de persistência, gerenciamento de sessões
+e fluxo de solicitação de cadastro com PostgreSQL real
 
 ### 5.4. Testes de integridade
 
@@ -112,6 +123,9 @@ Durante o desenvolvimento, é possível executar somente os testes necessários.
 | Administração de usuários | `node --test --test-concurrency=1 tests/api/admin-users.test.js` |
 | Logout | `node --test --test-concurrency=1 tests/api/logout.test.js` |
 | Integração de sessões | `node --test --test-concurrency=1 database/tests/integration/auth-sessions-integration.test.js` |
+| Solicitação de cadastro — API | `node --test --test-concurrency=1 tests/api/registration-requests.test.js` |
+| Solicitação de cadastro — integração | `node --test --test-concurrency=1 database/tests/integration/registration-requests-integration.test.js` |
+| Integridade PostgreSQL | `node --test --test-concurrency=1 database/tests/integrity/postgres-integrity.test.js` |
 
 O uso de `--test-concurrency=1` mantém a execução sequencial dos arquivos selecionados, reduzindo interferências entre testes que utilizam recursos ou configurações compartilhadas.
 
@@ -170,6 +184,43 @@ Os cenários implementados verificam:
 
 Os testes criam registros temporários e executam limpeza dos registros identificados durante a execução.
 
+## 10. Testes da solicitação de cadastro
+
+A BE-05 possui cobertura em três níveis.
+
+### API
+
+O arquivo `registration-requests.test.js` verifica:
+
+- criação pública de solicitação;
+- validações de entrada;
+- proteção das rotas administrativas;
+- listagem;
+- aprovação;
+- rejeição;
+- tentativa de analisar solicitação já revisada;
+- limite de 150 caracteres para e-mail;
+- limite de 500 caracteres para motivo da rejeição.
+
+### Integração PostgreSQL
+
+O arquivo `registration-requests-integration.test.js` verifica:
+
+- aprovação real;
+- rejeição real;
+- rollback quando ocorre falha durante aprovação;
+- concorrência de aprovação;
+- concorrência de criação de solicitação.
+
+### Integridade PostgreSQL
+
+O arquivo `postgres-integrity.test.js` verifica:
+
+- consistência dos estados;
+- foreign keys;
+- limites dos campos;
+- unicidade de solicitação PENDING.
+
 ### Cuidados de execução
 
 O teste de integração deve executar somente em ambiente `development`.
@@ -199,14 +250,16 @@ Arquivos `.env` com credenciais não devem ser incluídos no repositório.
 ## 11. Resultado da validação integrada
 
 **Referência:** execução de `npm test` em 10/10/2026, no ambiente local de desenvolvimento.
+execução final após reconstrução completa do ambiente de desenvolvimento
 
 | Suíte | Executados | Aprovados | Falhas |
 |---|---:|---:|---:|
-| Integridade PostgreSQL e MongoDB | 31 | 31 | 0 |
-| Integração com persistência | 17 | 17 | 0 |
+| Integridade PostgreSQL e MongoDB | 37 | 37 | 0 |
+| Integração com persistência | 22 | 22 | 0 |
 | Consultas de persistência | 5 | 5 | 0 |
-| API e autenticação | 67 | 67 | 0 |
-| **Total** | **120** | **120** | **0** |
+| API e autenticação | 76 | 76 | 0 |
+| **Total** | **140** | **140** | **0** |
+
 
 A execução também confirmou:
 
