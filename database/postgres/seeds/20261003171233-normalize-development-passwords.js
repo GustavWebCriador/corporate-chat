@@ -11,7 +11,7 @@ const {
 
 const {
     users
-} = require("../../../scripts/shared/dev-fixtures");
+} = require("../../../backend/scripts/shared/dev-fixtures");
 
 
 

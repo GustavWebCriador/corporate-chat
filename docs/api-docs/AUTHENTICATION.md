@@ -327,7 +327,7 @@ Esses itens representam possibilidades de evolução e não devem ser interpreta
 | `backend/src/middlewares/authenticate.js` | Proteção das rotas |
 | `backend/src/models/postgres/AuthSession.js` | Model Sequelize |
 | `backend/src/repositories/postgres/authSessionRepository.js` | Persistência e revogação de sessões |
-| `backend/database/postgres/migrations/20261010210453-create-auth-sessions.js` | Migration da tabela de sessões |
+| `database/postgres/migrations/20261010210453-create-auth-sessions.js` | Migration da tabela de sessões |
 
 ## 14. Testes e validação
 
