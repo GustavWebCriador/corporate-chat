@@ -14,11 +14,6 @@ const errorHandler = require("./middlewares/errorHandler");
 
 const API_PREFIX = "/api/v1";
 
-const {
-    createConversationService,
-} = require("./services/conversationService");
-const defaultConversationService = createConversationService();
-
 function buildCorsOptions() {
     const raw = process.env.CORS_ORIGIN;
 
@@ -40,7 +35,6 @@ function createApp({
     authService = defaultAuthService,
     userService = defaultUserService,
     registrationRequestService = defaultRegistrationRequestService,
-    conversationService = defaultConversationService,
 } = {}) {
     const app = express();
 
@@ -54,7 +48,6 @@ function createApp({
         authService,
         userService,
         registrationRequestService,
-        conversationService,
     }));
 
     app.use(notFound);
