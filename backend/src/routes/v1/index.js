@@ -3,10 +3,17 @@ const express = require("express");
 const { createHealthRoutes } = require("./healthRoutes");
 const { createAuthRoutes } = require("./authRoutes");
 const { createAdminUserRoutes } = require("./adminUserRoutes");
+
 const {
     createRegistrationRequestRoutes,
     createAdminRegistrationRequestRoutes,
 } = require("./registrationRequestRoutes");
+
+const {
+    createDashboardRoutes,
+} = require(
+    "./dashboardRoutes"
+);
 
 /**
  * Roteador raiz da API (montado em /api/v1 pelo app.js).
@@ -18,6 +25,7 @@ function createRouter({
     authService,
     userService,
     registrationRequestService,
+    dashboardService,
 }) {
     const router = express.Router();
 
@@ -29,6 +37,14 @@ function createRouter({
     router.use(
         "/auth",
         createAuthRoutes({ authService })
+    );
+
+    router.use(
+    "/dashboard",
+    createDashboardRoutes({
+        authService,
+        dashboardService,
+        })
     );
 
     router.use(
