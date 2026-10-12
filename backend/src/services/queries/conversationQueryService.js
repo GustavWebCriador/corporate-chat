@@ -183,6 +183,80 @@ async function listUserConversations(
                 .lean()
 
             : [];
+    /*
+ * Busca os participantes ACTIVE
+ * das conversas retornadas.
+ *
+ * Uma única consulta é utilizada
+ * para evitar N+1 queries.
+ */
+    const conversationMembers =
+        await ConversationMember
+            .find({
+
+                conversation_id: {
+
+                    $in:
+                        conversationIds,
+                },
+
+                status:
+                    "ACTIVE",
+            })
+            .select({
+
+                conversation_id:
+                    1,
+
+                user_id:
+                    1,
+
+                _id:
+                    0,
+            })
+            .lean();
+
+
+    /*
+     * Agrupa UUIDs dos participantes
+     * por conversation_id.
+     */
+    const participantMap =
+        new Map();
+
+
+    for (
+        const member of
+        conversationMembers
+    ) {
+
+        const conversationId =
+            member
+                .conversation_id
+                .toString();
+
+
+        if (
+            !participantMap.has(
+                conversationId
+            )
+        ) {
+
+            participantMap.set(
+                conversationId,
+                []
+            );
+        }
+
+
+        participantMap
+            .get(
+                conversationId
+            )
+            .push(
+                member.user_id
+            );
+    }
 
 
     const lastMessageMap =
@@ -230,6 +304,13 @@ async function listUserConversations(
             return {
 
                 ...conversation,
+
+                participant_user_ids:
+                    participantMap.get(
+                        conversation
+                            ._id
+                            .toString()
+                    ) ?? [],
 
                 membership: {
 
