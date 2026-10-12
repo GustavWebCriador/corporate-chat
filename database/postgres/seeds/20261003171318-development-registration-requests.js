@@ -3,7 +3,7 @@
 const {
     users,
     registrationRequests,
-} = require("../../../scripts/shared/dev-fixtures");
+} = require("../../../backend/scripts/shared/dev-fixtures");
 
 
 module.exports = {

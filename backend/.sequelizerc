@@ -14,15 +14,17 @@ module.exports = {
     ),
 
     "migrations-path": path.resolve(
+        "..",
         "database",
         "postgres",
         "migrations"
     ),
 
     "seeders-path": path.resolve(
+        "..",
         "database",
         "postgres",
-        "seeders"
+        "seeds"
     ),
 };
 

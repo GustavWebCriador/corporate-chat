@@ -8,20 +8,20 @@ const mongoose = require("mongoose");
 // =====================================================
 
 const {connectMongoDB} =
-    require("../../../src/config/db/mongodb");
+    require("../../../backend/src/config/db/mongodb");
 
 // =====================================================
 // MODELS
 // =====================================================
 
 const Conversation =
-    require("../../../src/models/mongodb/Conversation");
+    require("../../../backend/src/models/mongodb/Conversation");
 
 const ConversationMember =
-    require("../../../src/models/mongodb/ConversationMember");
+    require("../../../backend/src/models/mongodb/ConversationMember");
 
 const Message =
-    require("../../../src/models/mongodb/Message");
+    require("../../../backend/src/models/mongodb/Message");
 
 
 // =====================================================
@@ -33,7 +33,7 @@ const {
     mongoIds,
     clientMessageIds,
     generatePrivateKey,
-} = require("../../../scripts/shared/dev-fixtures");
+} = require("../../../backend/scripts/shared/dev-fixtures");
 
 // =====================================================
 // FUNÇÃO AUXILIAR DE UPSERT

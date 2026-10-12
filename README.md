@@ -110,19 +110,30 @@ A estrutura pode evoluir conforme novas funcionalidades forem implementadas, mas
 ```text
 corporate-chat/
 │
+├── database/
+│   │
+│   ├── postgres/
+│   │   ├── migrations/
+│   │   └── seeds/
+│   │
+│   └── mongodb/
+│       └── seeds/
+│
 ├── backend/
 │   │
 │   ├── database/
 │   │   ├── mongodb/
-│   │   │   ├── seeds/
 │   │   │   ├── health-test.js
 │   │   │   ├── smoke-test.js
 │   │   │   └── sync-indexes.js
 │   │   │
-│   │   └── postgres/
-│   │       ├── migrations/
-│   │       ├── seeders/
-│   │       └── health-test.js
+│   │   ├── postgres/
+│   │   │   └── health-test.js
+│   │   │
+│   │   └── tests/
+│   │       ├── integrity/
+│   │       ├── integration/
+│   │       └── queries/
 │   │
 │   ├── scripts/
 │   │   ├── sync-dev.js
@@ -149,6 +160,7 @@ corporate-chat/
 │   │
 │   ├── .env
 │   ├── .env.example
+│   ├── .sequelizerc
 │   ├── package.json
 │   └── package-lock.json
 │
