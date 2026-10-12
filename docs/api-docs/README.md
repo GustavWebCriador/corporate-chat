@@ -83,6 +83,23 @@ A API também possui funcionalidades administrativas para gerenciamento de usuá
 Essas operações são protegidas por autenticação e exigem permissões administrativas.
 
 Os caminhos e contratos completos desses endpoints devem ser consultados na implementação de `backend/src/routes/`.
+### 6.4. Solicitação de cadastro
+
+O Corporate Chat permite que uma pessoa ainda não cadastrada solicite acesso ao sistema.
+
+A solicitação não concede acesso automaticamente. Ela permanece pendente até ser analisada por um administrador.
+
+| Método | Endpoint | Acesso | Finalidade |
+|---|---|---|---|
+| POST | `/api/v1/registration-requests` | Público | Criar solicitação |
+| GET | `/api/v1/admin/registration-requests` | Administrador | Listar solicitações |
+| POST | `/api/v1/admin/registration-requests/:requestId/approve` | Administrador | Aprovar e criar usuário |
+| POST | `/api/v1/admin/registration-requests/:requestId/reject` | Administrador | Rejeitar solicitação |
+
+Consulte a documentação detalhada:
+
+**[Solicitação de cadastro](REGISTRATION.md)**
+
 
 ## 7. Autenticação e autorização
 
@@ -127,6 +144,7 @@ A aplicação possui testes automatizados para:
 - Autorização administrativa.
 - Gerenciamento de sessões e logout.
 - Tratamento de erros e validações da API.
+- Solicitação, aprovação e rejeição de cadastro.
 
 Os testes da API utilizam o Node.js Test Runner. Os testes de integração de persistência executam operações controladas nos bancos do ambiente de desenvolvimento.
 
@@ -141,6 +159,7 @@ Consulte:
 | [Autenticação e gerenciamento de sessões](AUTHENTICATION.md) | Descrever JWT, login, logout, persistência e segurança das sessões |
 | [Testes automatizados](TESTING.md) | Orientar a execução e validação dos testes |
 | [Documentação de persistência](../persistence/README.md) | Descrever a arquitetura e as operações de persistência |
+| [Solicitação de cadastro](REGISTRATION.md) | Descrever o fluxo de solicitação, aprovação, rejeição e criação do usuário |
 
 ## 11. Evolução da documentação
 

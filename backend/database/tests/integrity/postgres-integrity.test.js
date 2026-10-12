@@ -227,12 +227,8 @@ async function insertRequest(
             transaction,
         }
     );
-
-
     return data;
 }
-
-
 /*
  * Códigos PostgreSQL:
  *
@@ -272,8 +268,6 @@ async function expectPostgresError(
  * USERS
  * ============================================
  */
-
-
 test(
     "POSTGRES: usuário válido deve ser aceito",
 
@@ -472,9 +466,13 @@ test(
     async () => {
 
         await withTransaction(
-            async (
-                transaction
-            ) => {
+            async (transaction) => {
+
+                const createdUser =
+                    await insertUser(
+                        transaction
+                    );
+
 
                 await expectPostgresError(
 
@@ -490,6 +488,12 @@ test(
 
                                 reviewed_by:
                                     null,
+
+                                rejection_reason:
+                                    null,
+
+                                created_user_id:
+                                    createdUser.user_id,
                             }
                         ),
 
@@ -551,32 +555,23 @@ test(
 
 test(
     "POSTGRES: reviewed_by inexistente deve ser rejeitado",
-
     async () => {
-
-        await withTransaction(
-            async (
-                transaction
-            ) => {
-
-                await expectPostgresError(
-
-                    () =>
-                        insertRequest(
-                            transaction,
-                            {
-                                reviewed_by:
-                                    randomUUID(),
-                            }
-                        ),
-
-                    "23503"
-                );
-            }
-        );
+        await withTransaction(async (transaction) => {
+            await expectPostgresError(
+                () =>
+                    insertRequest(transaction, {
+                        status: "REJECTED",
+                        reviewed_at: new Date(),
+                        reviewed_by: randomUUID(),
+                        rejection_reason:
+                            "Solicitação rejeitada para teste",
+                        created_user_id: null,
+                    }),
+                "23503"
+            );
+        });
     }
 );
-
 
 test(
     "POSTGRES: usuário referenciado não pode ser removido fisicamente",
@@ -767,6 +762,7 @@ test(
 );
 
 
+
 test(
     "POSTGRES: created_user_id inexistente deve ser rejeitado",
 
@@ -775,16 +771,313 @@ test(
         await withTransaction(
             async (transaction) => {
 
+                const admin =
+                    await insertUser(
+                        transaction,
+                        {
+                            is_admin:
+                                true,
+                        }
+                    );
+
+
                 await expectPostgresError(
+
                     () =>
                         insertRequest(
                             transaction,
                             {
+                                status:
+                                    "APPROVED",
+
+                                reviewed_at:
+                                    new Date(),
+
+                                reviewed_by:
+                                    admin.user_id,
+
+                                rejection_reason:
+                                    null,
+
                                 created_user_id:
                                     randomUUID(),
                             }
                         ),
+
                     "23503"
+                );
+            }
+        );
+    }
+);
+
+test(
+    "POSTGRES: PENDING com dados de revisão deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const admin =
+                    await insertUser(
+                        transaction,
+                        {
+                            is_admin:
+                                true,
+                        }
+                    );
+
+
+                await expectPostgresError(
+
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                status:
+                                    "PENDING",
+
+                                reviewed_at:
+                                    new Date(),
+
+                                reviewed_by:
+                                    admin.user_id,
+                            }
+                        ),
+
+                    "23514"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: PENDING com created_user_id deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const user =
+                    await insertUser(
+                        transaction
+                    );
+
+
+                await expectPostgresError(
+
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                status:
+                                    "PENDING",
+
+                                created_user_id:
+                                    user.user_id,
+                            }
+                        ),
+
+                    "23514"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: APPROVED sem created_user_id deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const admin =
+                    await insertUser(
+                        transaction,
+                        {
+                            is_admin:
+                                true,
+                        }
+                    );
+
+
+                await expectPostgresError(
+
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                status:
+                                    "APPROVED",
+
+                                reviewed_at:
+                                    new Date(),
+
+                                reviewed_by:
+                                    admin.user_id,
+
+                                created_user_id:
+                                    null,
+                            }
+                        ),
+
+                    "23514"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: APPROVED com rejection_reason deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const admin =
+                    await insertUser(
+                        transaction,
+                        {
+                            is_admin:
+                                true,
+                        }
+                    );
+
+                const createdUser =
+                    await insertUser(
+                        transaction
+                    );
+
+
+                await expectPostgresError(
+
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                status:
+                                    "APPROVED",
+
+                                reviewed_at:
+                                    new Date(),
+
+                                reviewed_by:
+                                    admin.user_id,
+
+                                rejection_reason:
+                                    "Não deveria existir.",
+
+                                created_user_id:
+                                    createdUser.user_id,
+                            }
+                        ),
+
+                    "23514"
+                );
+            }
+        );
+    }
+);
+
+
+test(
+    "POSTGRES: REJECTED com created_user_id deve ser rejeitado",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const admin =
+                    await insertUser(
+                        transaction,
+                        {
+                            is_admin:
+                                true,
+                        }
+                    );
+
+                const createdUser =
+                    await insertUser(
+                        transaction
+                    );
+
+
+                await expectPostgresError(
+
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                status:
+                                    "REJECTED",
+
+                                reviewed_at:
+                                    new Date(),
+
+                                reviewed_by:
+                                    admin.user_id,
+
+                                rejection_reason:
+                                    "Solicitação rejeitada.",
+
+                                created_user_id:
+                                    createdUser.user_id,
+                            }
+                        ),
+
+                    "23514"
+                );
+            }
+        );
+    }
+);
+
+test(
+    "POSTGRES: somente uma solicitação PENDING por e-mail deve ser permitida",
+
+    async () => {
+
+        await withTransaction(
+            async (transaction) => {
+
+                const email =
+                    createEmail(
+                        "pending-unique"
+                    );
+
+
+                await insertRequest(
+                    transaction,
+                    {
+                        email:
+                            email.toLowerCase(),
+                    }
+                );
+
+
+                await expectPostgresError(
+
+                    () =>
+                        insertRequest(
+                            transaction,
+                            {
+                                email:
+                                    email.toUpperCase(),
+                            }
+                        ),
+
+                    "23505"
                 );
             }
         );
