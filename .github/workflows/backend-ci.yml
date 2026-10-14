@@ -1,0 +1,163 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16
+
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: corporate_chat_ci
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d corporate_chat_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+      mongodb:
+        image: mongo:8
+
+        env:
+          MONGO_INITDB_ROOT_USERNAME: ci_mongo
+          MONGO_INITDB_ROOT_PASSWORD: ci_mongo_password
+          MONGO_INITDB_DATABASE: corporate_chat_ci
+
+        ports:
+          - 27017:27017
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      NODE_ENV: development
+
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_DB: corporate_chat_ci
+
+      MONGO_HOST: 127.0.0.1
+      MONGO_PORT: 27017
+      MONGO_USER: ci_mongo
+      MONGO_PASSWORD: ci_mongo_password
+      MONGO_DB: corporate_chat_ci
+
+      DEV_SEED_PASSWORD: "SenhaDev@123"
+
+      JWT_SECRET: "ci-only-secret-corporate-chat-2026-validation"
+      JWT_EXPIRES_IN: 1h
+
+      CORS_ORIGIN: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        run: |
+          find src database scripts tests \
+            -type f \
+            -name "*.js" \
+            -print0 \
+            | xargs -0 -n1 node --check
+
+      - name: Wait for MongoDB
+        run: |
+          node <<'NODE'
+          const mongoose = require("mongoose");
+
+          const username = encodeURIComponent(process.env.MONGO_USER);
+          const password = encodeURIComponent(process.env.MONGO_PASSWORD);
+
+          const uri =
+            `mongodb://${username}:${password}` +
+            `@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}` +
+            `/${process.env.MONGO_DB}?authSource=admin`;
+
+          async function waitForMongo() {
+            for (let attempt = 1; attempt <= 30; attempt += 1) {
+              try {
+                await mongoose.connect(uri, {
+                  serverSelectionTimeoutMS: 2000,
+                });
+
+                console.log("MongoDB ready.");
+
+                await mongoose.disconnect();
+
+                return;
+              } catch (error) {
+                console.log(
+                  `Waiting for MongoDB (${attempt}/30)...`
+                );
+
+                if (attempt === 30) {
+                  throw error;
+                }
+
+                await new Promise(
+                  resolve => setTimeout(resolve, 2000)
+                );
+              }
+            }
+          }
+
+          waitForMongo().catch(error => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Run PostgreSQL migrations
+        run: npm run db:migrate
+
+      - name: Create development fixtures
+        run: npm run seed:dev
+
+      - name: Run full backend verification
+        run: npm run verify:persistence
+
+      - name: Show migration status
+        run: npm run db:migrate:status
