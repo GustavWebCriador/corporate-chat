@@ -25,6 +25,14 @@ A documentação técnica da API do Corporate Chat está disponível nos seguint
 - [Guia de testes automatizados](docs/api-docs/TESTING.md)
 - [Dashboard](docs/api-docs/DASHBOARD.md)
 
+
+## Governança e contribuição
+
+A organização do desenvolvimento, revisão e integração do projeto está documentada em:
+
+- [CI e Governança](docs/governance/CI-GOVERNANCE.md)
+- [Como contribuir](CONTRIBUTING.md)
+
 ## Tecnologias utilizadas
 
 ### Backend
