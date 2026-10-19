@@ -15,6 +15,12 @@ const {
     "./dashboardRoutes"
 );
 
+const {
+    createConversationRoutes,
+} = require("./conversationRoutes");
+
+
+
 /**
  * Roteador raiz da API (montado em /api/v1 pelo app.js).
  * Cada PBI novo registra suas rotas aqui:
@@ -26,6 +32,7 @@ function createRouter({
     userService,
     registrationRequestService,
     dashboardService,
+    conversationService,
 }) {
     const router = express.Router();
 
@@ -67,6 +74,14 @@ function createRouter({
         createAdminRegistrationRequestRoutes({
             authService,
             registrationRequestService,
+        })
+    );
+
+    router.use(
+        "/conversations",
+        createConversationRoutes({
+            authService,
+            conversationService,
         })
     );
 
