@@ -172,6 +172,73 @@ Quando uma nova necessidade independente for identificada, prefira registrá-la 
 
 ---
 
+### 6.1. Convenção de organização do backend
+
+O backend utiliza uma **estrutura híbrida**: `routes`, `controllers`, `models`, `repositories` e `middlewares` são separados por responsabilidade técnica, enquanto os serviços específicos são agrupados por **domínio funcional** dentro de `src/services/`.
+
+Para novos serviços, adote preferencialmente a seguinte organização:
+
+```text
+backend/src/
+├── controllers/
+│   └── conversationController.js
+├── routes/v1/
+│   └── conversationRoutes.js
+├── services/
+│   ├── auth/
+│   │   └── authService.js
+│   ├── conversations/
+│   │   └── conversationService.js
+│   ├── dashboard/
+│   │   └── dashboardService.js
+│   ├── integration/
+│   │   └── chatPersistenceService.js
+│   ├── queries/
+│   │   ├── conversationQueryService.js
+│   │   └── messageQueryService.js
+│   ├── registrationRequests/
+│   │   └── registrationRequestService.js
+│   └── users/
+│       └── userService.js
+└── models/
+    ├── mongodb/
+    └── postgres/
+```
+
+A estrutura acima ilustra a **convenção desejada**; uma pasta ou um arquivo de exemplo pode ainda não existir na `main`. Não é necessário mover módulos antigos sem uma justificativa técnica.
+
+#### Responsabilidades
+
+| Camada ou diretório | Responsabilidade |
+|---|---|
+| `routes/v1/` | Declarar endpoints, middlewares e encaminhar requisições aos controllers. |
+| `controllers/` | Interpretar requisições HTTP e encaminhar os resultados e erros para o tratamento padronizado. |
+| `services/<dominio>/` | Orquestrar casos de uso e aplicar regras de negócio específicas do domínio. |
+| `services/queries/` | Concentrar consultas reutilizáveis, paginação e leitura de dados. |
+| `services/integration/` | Coordenar operações de persistência e integração entre bancos ou serviços. |
+| `repositories/` | Encapsular operações de acesso a dados quando adotado pelo módulo. |
+| `models/` | Definir estruturas, validações e mapeamentos dos dados. |
+| `middlewares/` | Implementar preocupações transversais, como autenticação e tratamento de erros. |
+
+#### Reutilização e prevenção de duplicidade
+
+- **Não duplique** consultas ou regras já disponíveis em serviços compartilhados. Antes de criar um novo método, verifique se existe uma implementação equivalente.
+- Um serviço de domínio pode **orquestrar** serviços de consulta ou persistência sem reproduzir internamente as mesmas consultas MongoDB/PostgreSQL.
+- No domínio de conversas, `conversationService.js` coordena os casos de uso da API, `chatPersistenceService.js` cuida da criação/reutilização, `conversationQueryService.js` centraliza consultas de conversas e `messageQueryService.js` fornece o histórico paginado.
+- Se um arquivo novo apenas repassar chamadas sem acrescentar regras, adaptação de contrato ou coordenação, avalie se essa camada é realmente necessária; registre a decisão na revisão do PR.
+- Preserve contratos, respostas HTTP e comportamento das funcionalidades existentes ao reutilizar ou refatorar um serviço.
+
+#### Alteração de diretórios e imports
+
+- Ao criar um serviço específico, utilize `src/services/<dominio>/` e nomes coerentes com os demais módulos.
+- Ao mover arquivos, atualize todos os `require`/imports e testes afetados; em especial, confira caminhos relativos e diferenças entre maiúsculas e minúsculas em ambientes Linux.
+- Não mova arquivos compartilhados nem reorganize todo o backend como parte de uma BE específica sem necessidade: refatorações amplas devem ser discutidas e, quando independentes, propostas em PR próprio.
+- Confirme o resultado com `node --check` nos arquivos alterados, `npm test` e `git diff --check` antes de solicitar a integração.
+
+**Critério de revisão:** o Pull Request deve demonstrar organização coerente por domínio, responsabilidade única por módulo, reutilização de lógica existente e ausência de mudanças estruturais fora do escopo da tarefa.
+
+---
+
 ## 7. Antes do push
 
 Antes de enviar alterações para o repositório remoto, revise o estado da branch.
