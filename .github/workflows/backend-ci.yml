@@ -21,7 +21,7 @@ concurrency:
 jobs:
   validate:
     name: Validate backend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
 
     services:
@@ -52,6 +52,12 @@ jobs:
 
         ports:
           - 27017:27017
+
+        options: >-
+          --health-cmd "mongosh --quiet --username ci_mongo --password ci_mongo_password --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
 
     defaults:
       run:
