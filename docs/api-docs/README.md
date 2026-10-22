@@ -115,6 +115,25 @@ Consulte a documentação detalhada:
 
 **[Dashboard](DASHBOARD.md)**
 
+### 6.6. Gerenciamento de grupos
+
+Usuários autenticados podem criar e gerenciar grupos de conversa.
+
+| Método | Endpoint | Acesso | Finalidade |
+|---|---|---|---|
+| POST | `/api/v1/groups` | Usuário autenticado | Criar grupo |
+| GET | `/api/v1/groups/:groupId` | Membro ativo | Consultar grupo |
+| PATCH | `/api/v1/groups/:groupId` | Criador | Alterar nome |
+| POST | `/api/v1/groups/:groupId/members` | Criador | Adicionar participantes |
+| DELETE | `/api/v1/groups/:groupId/members/:userId` | Criador | Remover participante |
+| POST | `/api/v1/groups/:groupId/leave` | Membro ativo | Sair voluntariamente |
+
+O gerenciamento preserva o histórico de participação através dos estados `ACTIVE`, `LEFT` e `REMOVED`.
+
+Consulte a documentação detalhada:
+
+**[Gerenciamento de grupos](GROUPS.md)**
+
 
 ## 7. Autenticação e autorização
 
@@ -161,6 +180,7 @@ A aplicação possui testes automatizados para:
 - Tratamento de erros e validações da API.
 - Solicitação, aprovação e rejeição de cadastro.
 - Dashboard, contatos e composição entre PostgreSQL e MongoDB.
+- Criação e gerenciamento de grupos, participantes, autorização do criador e estados `ACTIVE`, `LEFT` e `REMOVED`.
 
 Os testes da API utilizam o Node.js Test Runner. Os testes de integração de persistência executam operações controladas nos bancos do ambiente de desenvolvimento.
 
@@ -177,6 +197,7 @@ Consulte:
 | [Documentação de persistência](../persistence/README.md) | Descrever a arquitetura e as operações de persistência |
 | [Solicitação de cadastro](REGISTRATION.md) | Descrever o fluxo de solicitação, aprovação, rejeição e criação do usuário |
 | [Dashboard](DASHBOARD.md) | Descrever o endpoint, contatos, conversas e regras de segurança do dashboard |
+| [Gerenciamento de grupos](GROUPS.md) | Descrever criação, participantes, autorização, saída e remoção em grupos |
 
 ## 11. Evolução da documentação
 
