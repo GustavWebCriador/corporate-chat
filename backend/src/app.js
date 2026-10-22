@@ -10,6 +10,7 @@ const {registrationRequestService: defaultRegistrationRequestService,} = require
 const {dashboardService: defaultDashboardService, } = require("./services/dashboard/dashboardService");
 
 const { createConversationService,} = require("./services/conversations/conversationService");
+const {createGroupService,} = require("./services/groups/groupService");
 const notFound = require("./middlewares/notFound");
 const errorHandler = require("./middlewares/errorHandler");
 
@@ -39,6 +40,7 @@ function createApp({
     registrationRequestService = defaultRegistrationRequestService,
     dashboardService = defaultDashboardService,
     conversationService = createConversationService(),
+    groupService = createGroupService(),
 } = {}) {
     const app = express();
 
@@ -54,6 +56,7 @@ function createApp({
         registrationRequestService,
         dashboardService,
         conversationService,
+        groupService,
     }));
 
     app.use(notFound);
