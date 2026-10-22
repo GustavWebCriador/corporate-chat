@@ -24,7 +24,7 @@ A documentação técnica da API do Corporate Chat está disponível nos seguint
 - [Solicitação de cadastro](docs/api-docs/REGISTRATION.md)
 - [Guia de testes automatizados](docs/api-docs/TESTING.md)
 - [Dashboard](docs/api-docs/DASHBOARD.md)
-
+- [Gerenciamento de grupos](docs/api-docs/GROUPS.md)
 
 ## Governança e contribuição
 
