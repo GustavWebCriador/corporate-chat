@@ -27,6 +27,7 @@ Os testes de integração utilizam PostgreSQL e MongoDB reais no ambiente de des
 | `backend/database/tests/integrity/` | Regras de integridade dos bancos |
 | `backend/database/tests/integration/` | Integração com persistência real |
 | `backend/database/tests/queries/` | Consultas e operações de leitura |
+| `backend/tests/realtime/` | Testes da infraestrutura Socket.IO |
 
 ### Arquivos relacionados à autenticação
 
@@ -77,7 +78,7 @@ Todos os comandos devem ser executados a partir do diretório `backend/`.
 
 **Comando:** `npm test`
 
-Executa sequencialmente as validações de persistência e os testes da API.
+Executa sequencialmente as validações de persistência, os testes da API e os testes da infraestrutura realtime.
 
 É o principal comando para verificação de regressão antes de concluir uma entrega.
 
@@ -106,7 +107,7 @@ A suíte contempla:
 
 Executa os arquivos `database/tests/integration/*.test.js`.
 
-A suíte verifica as integrações reais de persistência, incluindo gerenciamento de sessões, fluxo de solicitação de cadastro e composição do dashboard com PostgreSQL e MongoDB.
+A suíte verifica integrações reais com PostgreSQL e MongoDB, incluindo gerenciamento de sessões, solicitações de cadastro, dashboard, conversas, grupos, mensagens e autenticação Socket.IO utilizando JWT e sessões persistidas.
 
 
 
@@ -121,6 +122,12 @@ Valida as restrições, relacionamentos e regras de integridade aplicadas aos mo
 **Comando:** `npm run test:queries`
 
 Verifica consultas relevantes à camada de persistência, incluindo usuários, solicitações, conversas e mensagens.
+
+### 5.6. Testes realtime
+
+**Comando:** `npm run test:realtime`
+
+Valida autenticação da conexão Socket.IO, segurança do handshake, ciclo de vida das conexões, múltiplos sockets por usuário, rooms privadas e o registry de conexões.
 
 ## 6. Execução de arquivos individuais
 
@@ -137,6 +144,10 @@ Durante o desenvolvimento, é possível executar somente os testes necessários.
 | Integridade PostgreSQL | `node --test --test-concurrency=1 database/tests/integrity/postgres-integrity.test.js` |
 | Dashboard — API | `node --test --test-concurrency=1 tests/api/dashboard.test.js` |
 | Dashboard — integração | `node --test --test-concurrency=1 database/tests/integration/dashboard-integration.test.js` |
+| Socket.IO — autenticação | `node --test --test-concurrency=1 tests/realtime/socket-auth.test.js` |
+| Socket.IO — lifecycle | `node --test --test-concurrency=1 tests/realtime/socket-lifecycle.test.js` |
+| Socket.IO — registry | `node --test --test-concurrency=1 tests/realtime/connection-registry.test.js` |
+| Socket.IO — integração real | `node --test --test-concurrency=1 database/tests/integration/socket-auth-integration.test.js` |
 
 O uso de `--test-concurrency=1` mantém a execução sequencial dos arquivos selecionados, reduzindo interferências entre testes que utilizam recursos ou configurações compartilhadas.
 
@@ -346,5 +357,6 @@ A suíte automatizada deverá evoluir juntamente com os serviços e contratos da
 - [Autenticação e gerenciamento de sessões](AUTHENTICATION.md)
 - [Arquitetura de persistência](../persistence/README.md)
 - [Dashboard](DASHBOARD.md)
+- [Comunicação em tempo real](docs/api-docs/REALTIME.md)
 
 A manutenção contínua desses documentos contribui para a rastreabilidade das decisões técnicas, a padronização do desenvolvimento e a qualidade das entregas do Corporate Chat.

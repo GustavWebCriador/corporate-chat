@@ -33,6 +33,7 @@ Esta documentação tem como objetivos:
 | bcryptjs | Verificação de senhas protegidas por hash |
 | Docker Compose | Infraestrutura de desenvolvimento |
 | Node.js Test Runner | Execução de testes automatizados |
+| Socket.IO | Comunicação em tempo real autenticada |
 
 ## 4. Organização da API
 
@@ -51,6 +52,8 @@ A organização lógica inclui:
 | `src/config/` | Configurações da aplicação |
 | `tests/api/` | Testes automatizados da API |
 | `database/tests/` | Testes de integridade e integração de persistência |
+| `src/realtime/` | Infraestrutura Socket.IO, autenticação, rooms e conexões |
+| `tests/realtime/` | Testes da infraestrutura de comunicação em tempo real |
 
 ## 5. Versionamento de endpoints
 
@@ -206,6 +209,9 @@ A aplicação possui testes automatizados para:
 - Envio e idempotência de mensagens.
 - Checkpoints de entrega e leitura.
 - Autorização de mensagens privadas e de grupos.
+- Autenticação de conexões Socket.IO.
+- Ciclo de vida e múltiplas conexões por usuário.
+- Rooms privadas e registry de conexões realtime.
 
 Os testes da API utilizam o Node.js Test Runner. Os testes de integração de persistência executam operações controladas nos bancos do ambiente de desenvolvimento.
 
@@ -226,6 +232,7 @@ Consulte:
 | [Conversas](CONVERSATION.md) | Descrever criação, listagem e histórico de conversas |
 | [Grupos](GROUPS.md) | Descrever criação e gerenciamento de grupos |
 | [Mensagens](MESSAGES.md) | Descrever envio, idempotência, entrega e leitura de mensagens |
+| [Comunicação em tempo real](REALTIME.md) | Descrever Socket.IO, autenticação, lifecycle, rooms e segurança realtime |
 
 ## 11. Evolução da documentação
 
