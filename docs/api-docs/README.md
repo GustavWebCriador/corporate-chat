@@ -134,6 +134,27 @@ Consulte a documentação detalhada:
 
 **[Gerenciamento de grupos](GROUPS.md)**
 
+### 6.7. Conversas
+
+Usuários autenticados podem criar conversas privadas, listar suas conversas e consultar o histórico de mensagens.
+
+Consulte a documentação detalhada:
+
+**[Conversas](CONVERSATION.md)**
+
+### 6.8. Mensagens, entrega e leitura
+
+Usuários autenticados e membros ativos de uma conversa podem enviar mensagens de texto e registrar checkpoints individuais de entrega e leitura.
+
+| Método | Endpoint | Finalidade |
+|---|---|---|
+| POST | `/api/v1/conversations/:conversationId/messages` | Enviar mensagem |
+| PATCH | `/api/v1/conversations/:conversationId/delivery` | Registrar entrega |
+| PATCH | `/api/v1/conversations/:conversationId/read` | Registrar leitura |
+
+Consulte a documentação detalhada:
+
+**[Mensagens, entrega e leitura](MESSAGES.md)**
 
 ## 7. Autenticação e autorização
 
@@ -181,6 +202,10 @@ A aplicação possui testes automatizados para:
 - Solicitação, aprovação e rejeição de cadastro.
 - Dashboard, contatos e composição entre PostgreSQL e MongoDB.
 - Criação e gerenciamento de grupos, participantes, autorização do criador e estados `ACTIVE`, `LEFT` e `REMOVED`.
+- Conversas privadas e histórico.
+- Envio e idempotência de mensagens.
+- Checkpoints de entrega e leitura.
+- Autorização de mensagens privadas e de grupos.
 
 Os testes da API utilizam o Node.js Test Runner. Os testes de integração de persistência executam operações controladas nos bancos do ambiente de desenvolvimento.
 
@@ -198,6 +223,9 @@ Consulte:
 | [Solicitação de cadastro](REGISTRATION.md) | Descrever o fluxo de solicitação, aprovação, rejeição e criação do usuário |
 | [Dashboard](DASHBOARD.md) | Descrever o endpoint, contatos, conversas e regras de segurança do dashboard |
 | [Gerenciamento de grupos](GROUPS.md) | Descrever criação, participantes, autorização, saída e remoção em grupos |
+| [Conversas](CONVERSATION.md) | Descrever criação, listagem e histórico de conversas |
+| [Grupos](GROUPS.md) | Descrever criação e gerenciamento de grupos |
+| [Mensagens](MESSAGES.md) | Descrever envio, idempotência, entrega e leitura de mensagens |
 
 ## 11. Evolução da documentação
 

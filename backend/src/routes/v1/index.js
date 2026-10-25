@@ -23,6 +23,11 @@ const {
     createGroupRoutes,
 } = require("./groupRoutes");
 
+const {
+    createMessageRoutes,
+} = require(
+    "./messageRoutes"
+);
 
 
 /**
@@ -38,6 +43,7 @@ function createRouter({
     dashboardService,
     conversationService,
     groupService,
+    messageService,
 }) {
     const router = express.Router();
 
@@ -87,6 +93,13 @@ function createRouter({
         createConversationRoutes({
             authService,
             conversationService,
+        })
+    );
+    router.use(
+        "/conversations",
+        createMessageRoutes({
+            authService,
+            messageService,
         })
     );
 
