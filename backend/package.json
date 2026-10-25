@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "npm run test:persistence && npm run test:api",
+    "test": "npm run test:persistence && npm run test:api && npm run test:realtime",
     "test:api": "node --test --test-concurrency=1 tests/api/*.test.js",
     "test:integrity": "node scripts/test-integrity.js",
     "integration:verify": "node scripts/verify-cross-db-integrity.js",
@@ -29,7 +29,8 @@
     "seed:dev": "node scripts/seed-dev.js",
     "seed:verify": "node scripts/verify-dev-seed.js",
     "env:sync": "node scripts/sync-dev.js",
-    "env:fresh": "node scripts/fresh-dev.js"
+    "env:fresh": "node scripts/fresh-dev.js",
+    "test:realtime": "node --test --test-concurrency=1 tests/realtime/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -44,10 +45,12 @@
     "mongoose": "^9.10.1",
     "pg": "^8.23.0",
     "pg-hstore": "^2.3.4",
-    "sequelize": "^6.37.8"
+    "sequelize": "^6.37.8",
+    "socket.io": "^4.8.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
-    "sequelize-cli": "^6.6.5"
+    "sequelize-cli": "^6.6.5",
+    "socket.io-client": "^4.8.4"
   }
 }

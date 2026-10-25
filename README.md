@@ -27,6 +27,7 @@ A documentação técnica da API do Corporate Chat está disponível nos seguint
 - [Gerenciamento de grupos](docs/api-docs/GROUPS.md)
 - [Conversas](docs/api-docs/CONVERSATION.md)
 - [Mensagens, entrega e leitura](docs/api-docs/MESSAGES.md)
+- [Comunicação em tempo real](docs/api-docs/REALTIME.md)
 
 ## Governança e contribuição
 
