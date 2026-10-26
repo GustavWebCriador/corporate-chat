@@ -418,10 +418,172 @@ async function countUnreadMessages(
         );
 }
 
+async function getMessagesAfter(
+    {
+        conversationId,
+        userId,
+        afterMessageId,
+        limit = 50,
+    }
+) {
+    await assertActiveMembership({
+        conversationId,
+        userId,
+    });
+
+
+    const numericLimit =
+        Number(
+            limit
+        );
+
+
+    const pageSize =
+        Number.isInteger(
+            numericLimit
+        ) &&
+        numericLimit > 0
+            ? Math.min(
+                numericLimit,
+                100
+            )
+            : 50;
+
+
+    if (
+        typeof afterMessageId !==
+            "string" ||
+        !mongoose.isValidObjectId(
+            afterMessageId
+        )
+    ) {
+        throw new PersistenceIntegrationError(
+            "INVALID_MESSAGE_ID",
+            "afterMessageId inválido."
+        );
+    }
+
+
+    /*
+     * O cursor precisa pertencer à própria
+     * conversa solicitada.
+     */
+    const anchor =
+        await Message
+            .findOne({
+                _id:
+                    afterMessageId,
+
+                conversation_id:
+                    conversationId,
+            })
+            .lean();
+
+
+    if (!anchor) {
+        throw new PersistenceIntegrationError(
+            "SYNC_ANCHOR_NOT_FOUND",
+            "Mensagem de referência da sincronização não encontrada."
+        );
+    }
+
+
+    const filter = {
+        conversation_id:
+            new mongoose
+                .Types
+                .ObjectId(
+                    conversationId
+                ),
+
+        $or: [
+            {
+                created_at: {
+                    $gt:
+                        anchor
+                            .created_at,
+                },
+            },
+
+            {
+                created_at:
+                    anchor
+                        .created_at,
+
+                _id: {
+                    $gt:
+                        anchor
+                            ._id,
+                },
+            },
+        ],
+    };
+
+
+    /*
+     * Diferente do histórico:
+     *
+     * aqui queremos:
+     *
+     * antiga perdida -> nova perdida
+     */
+    const result =
+        await Message
+            .find(
+                filter
+            )
+            .sort({
+                created_at:
+                    1,
+
+                _id:
+                    1,
+            })
+            .limit(
+                pageSize + 1
+            )
+            .lean();
+
+
+    const hasMore =
+        result.length >
+        pageSize;
+
+
+    const items =
+        result.slice(
+            0,
+            pageSize
+        );
+
+
+    const lastItem =
+        items.length > 0
+            ? items[
+                items.length - 1
+            ]
+            : null;
+
+
+    return {
+        items,
+
+        hasMore,
+
+        nextAfterMessageId:
+            lastItem
+                ? lastItem
+                    ._id
+                    .toString()
+                : afterMessageId,
+    };
+}
+
 module.exports = {
 
     assertActiveMembership,
     getLatestMessages,
     getMessageHistory,
+    getMessagesAfter,
     countUnreadMessages,
 };

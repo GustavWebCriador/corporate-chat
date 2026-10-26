@@ -34,6 +34,42 @@ const {
     "./rooms"
 );
 
+const {
+    REALTIME_EVENTS,
+} = require(
+    "./events"
+);
+
+const {
+    createMessageService,
+} = require(
+    "../services/messages/messageService"
+);
+
+const {
+    createRealtimeAudienceService,
+} = require(
+    "./realtimeAudienceService"
+);
+
+const {
+    registerMessageHandlers,
+} = require(
+    "./messageHandlers"
+);
+
+const {
+    createRealtimeSyncService,
+} = require(
+    "./realtimeSyncService"
+);
+
+const {
+    registerSyncHandlers,
+} = require(
+    "./syncHandlers"
+);
+
 const AUTH_CONNECTION_CODES =
     new Set([
         "TOKEN_MISSING",
@@ -94,6 +130,16 @@ function createSocketServer(
 
         connectionRegistry =
         createConnectionRegistry(),
+
+        messageService =
+        createMessageService(),
+
+        audienceService =
+        createRealtimeAudienceService(),
+
+        syncService =
+        createRealtimeSyncService(),
+
     } = {}
 ) {
     if (!httpServer) {
@@ -103,24 +149,25 @@ function createSocketServer(
     }
 
 
-    const io =
-        new Server(
-            httpServer,
-            {
-                cors:
-                    buildCorsOptions(),
+   const io =
+    new Server(
+        httpServer,
+        {
+            cors:
+                buildCorsOptions(),
 
-                /*
-                 * O frontend possuirá sua própria
-                 * dependência socket.io-client.
-                 *
-                 * O backend não precisa disponibilizar
-                 * /socket.io/socket.io.js.
-                 */
-                serveClient:
+            serveClient:
+                false,
+
+            connectionStateRecovery: {
+                maxDisconnectionDuration:
+                    2 * 60 * 1000,
+
+                skipMiddlewares:
                     false,
-            }
-        );
+            },
+        }
+    );
 
     /*
      * =================================================
@@ -256,7 +303,30 @@ function createSocketServer(
                     userId
                 )
             );
+            socket.emit(
+                REALTIME_EVENTS.READY,
+                {
+                    recovered:
+                        Boolean(
+                            socket.recovered
+                        ),
 
+                    connectedAt:
+                        new Date()
+                            .toISOString(),
+                }
+            );
+            registerMessageHandlers({
+                io,
+                socket,
+                messageService,
+                audienceService,
+            });
+
+            registerSyncHandlers({
+                socket,
+                syncService,
+            });
 
             /*
              * Socket.IO remove automaticamente
