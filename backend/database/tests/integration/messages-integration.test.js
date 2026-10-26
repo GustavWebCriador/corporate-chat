@@ -58,6 +58,11 @@ const {
     "../../../src/services/messages/messageService"
 );
 
+const {
+    getMessagesAfter,
+} = require(
+    "../../../src/services/queries/messageQueryService"
+);
 
 /*
  * =====================================================
@@ -1703,6 +1708,565 @@ test(
                 .toString(),
 
             newerMessage
+                ._id
+                .toString()
+        );
+    }
+);
+
+test(
+    "BE-11 INTEGRATION: sincronização retorna somente mensagens posteriores ao cursor",
+
+    async () => {
+        const sender =
+            await createTestUser();
+
+        const recipient =
+            await createTestUser();
+
+
+        const conversation =
+            await createPrivate(
+                sender,
+                recipient
+            );
+
+
+        const message01 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 01",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:00:00.000Z"
+                    ),
+            });
+
+
+        const message02 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 02",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:01:00.000Z"
+                    ),
+            });
+
+
+        const message03 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 03",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:02:00.000Z"
+                    ),
+            });
+
+
+        const message04 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 04",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:03:00.000Z"
+                    ),
+            });
+
+
+        const message05 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 05",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:04:00.000Z"
+                    ),
+            });
+
+
+        const result =
+            await getMessagesAfter({
+                conversationId:
+                    conversation
+                        ._id
+                        .toString(),
+
+                userId:
+                    recipient
+                        .user_id,
+
+                afterMessageId:
+                    message03
+                        ._id
+                        .toString(),
+
+                limit:
+                    50,
+            });
+
+
+        assert.equal(
+            result.items.length,
+            2
+        );
+
+
+        assert.deepEqual(
+            result
+                .items
+                .map(
+                    message =>
+                        message
+                            ._id
+                            .toString()
+                ),
+
+            [
+                message04
+                    ._id
+                    .toString(),
+
+                message05
+                    ._id
+                    .toString(),
+            ]
+        );
+
+
+        assert.equal(
+            result.hasMore,
+            false
+        );
+
+
+        assert.equal(
+            result
+                .nextAfterMessageId,
+
+            message05
+                ._id
+                .toString()
+        );
+
+
+        /*
+         * Garantia adicional:
+         * mensagens anteriores ou iguais
+         * ao cursor não voltaram.
+         */
+        const returnedIds =
+            result
+                .items
+                .map(
+                    message =>
+                        message
+                            ._id
+                            .toString()
+                );
+
+
+        assert.equal(
+            returnedIds.includes(
+                message01
+                    ._id
+                    .toString()
+            ),
+            false
+        );
+
+
+        assert.equal(
+            returnedIds.includes(
+                message02
+                    ._id
+                    .toString()
+            ),
+            false
+        );
+
+
+        assert.equal(
+            returnedIds.includes(
+                message03
+                    ._id
+                    .toString()
+            ),
+            false
+        );
+    }
+);
+
+test(
+    "BE-11 SYNC SECURITY: usuário que não pertence à conversa não sincroniza mensagens",
+
+    async () => {
+        const sender =
+            await createTestUser();
+
+        const recipient =
+            await createTestUser();
+
+        const outsider =
+            await createTestUser();
+
+
+        const conversation =
+            await createPrivate(
+                sender,
+                recipient
+            );
+
+
+        const anchor =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem inicial",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:00:00.000Z"
+                    ),
+            });
+
+
+        await assert.rejects(
+            () =>
+                getMessagesAfter({
+                    conversationId:
+                        conversation
+                            ._id
+                            .toString(),
+
+                    userId:
+                        outsider
+                            .user_id,
+
+                    afterMessageId:
+                        anchor
+                            ._id
+                            .toString(),
+
+                    limit:
+                        50,
+                }),
+
+            error =>
+                error &&
+                error.code ===
+                    "USER_NOT_ACTIVE_MEMBER"
+        );
+    }
+);
+
+test(
+    "BE-11 INTEGRATION: sincronização incremental pagina mensagens posteriores ao cursor",
+
+    async () => {
+        const sender =
+            await createTestUser();
+
+        const recipient =
+            await createTestUser();
+
+
+        const conversation =
+            await createPrivate(
+                sender,
+                recipient
+            );
+
+
+        const message01 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 01",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:00:00.000Z"
+                    ),
+            });
+
+
+        const message02 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 02",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:01:00.000Z"
+                    ),
+            });
+
+
+        const message03 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 03",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:02:00.000Z"
+                    ),
+            });
+
+
+        const message04 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 04",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:03:00.000Z"
+                    ),
+            });
+
+
+        const message05 =
+            await createStoredMessage({
+                conversationId:
+                    conversation._id,
+
+                senderId:
+                    sender.user_id,
+
+                content:
+                    "Mensagem 05",
+
+                createdAt:
+                    new Date(
+                        "2030-01-01T10:04:00.000Z"
+                    ),
+            });
+
+
+        /*
+         * =================================================
+         * PRIMEIRA PÁGINA
+         * =================================================
+         *
+         * Cursor:
+         * message01
+         *
+         * Disponíveis depois dele:
+         *
+         * message02
+         * message03
+         * message04
+         * message05
+         *
+         * limit = 2
+         */
+        const firstPage =
+            await getMessagesAfter({
+                conversationId:
+                    conversation
+                        ._id
+                        .toString(),
+
+                userId:
+                    recipient
+                        .user_id,
+
+                afterMessageId:
+                    message01
+                        ._id
+                        .toString(),
+
+                limit:
+                    2,
+            });
+
+
+        assert.equal(
+            firstPage
+                .items
+                .length,
+            2
+        );
+
+
+        assert.deepEqual(
+            firstPage
+                .items
+                .map(
+                    message =>
+                        message
+                            ._id
+                            .toString()
+                ),
+
+            [
+                message02
+                    ._id
+                    .toString(),
+
+                message03
+                    ._id
+                    .toString(),
+            ]
+        );
+
+
+        assert.equal(
+            firstPage.hasMore,
+            true
+        );
+
+
+        assert.equal(
+            firstPage
+                .nextAfterMessageId,
+
+            message03
+                ._id
+                .toString()
+        );
+
+
+        /*
+         * =================================================
+         * SEGUNDA PÁGINA
+         * =================================================
+         *
+         * Agora o cursor é message03.
+         *
+         * Devemos receber:
+         *
+         * message04
+         * message05
+         */
+        const secondPage =
+            await getMessagesAfter({
+                conversationId:
+                    conversation
+                        ._id
+                        .toString(),
+
+                userId:
+                    recipient
+                        .user_id,
+
+                afterMessageId:
+                    firstPage
+                        .nextAfterMessageId,
+
+                limit:
+                    2,
+            });
+
+
+        assert.equal(
+            secondPage
+                .items
+                .length,
+            2
+        );
+
+
+        assert.deepEqual(
+            secondPage
+                .items
+                .map(
+                    message =>
+                        message
+                            ._id
+                            .toString()
+                ),
+
+            [
+                message04
+                    ._id
+                    .toString(),
+
+                message05
+                    ._id
+                    .toString(),
+            ]
+        );
+
+
+        assert.equal(
+            secondPage.hasMore,
+            false
+        );
+
+
+        assert.equal(
+            secondPage
+                .nextAfterMessageId,
+
+            message05
                 ._id
                 .toString()
         );
