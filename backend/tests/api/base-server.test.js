@@ -154,6 +154,84 @@ test("a resposta não revela o header X-Powered-By", async () => {
     });
 });
 
+test(
+    "BE-12 SECURITY: respostas HTTP incluem headers de segurança",
+
+    async () => {
+        await withApp(
+            {
+                postgres:
+                    up,
+
+                mongodb:
+                    up,
+            },
+
+            async (
+                baseUrl
+            ) => {
+                const response =
+                    await fetch(
+                        `${baseUrl}/api/v1/health`
+                    );
+
+
+                assert.equal(
+                    response
+                        .headers
+                        .get(
+                            "x-content-type-options"
+                        ),
+
+                    "nosniff"
+                );
+
+
+                assert.equal(
+                    response
+                        .headers
+                        .get(
+                            "x-frame-options"
+                        ),
+
+                    "DENY"
+                );
+
+
+                assert.equal(
+                    response
+                        .headers
+                        .get(
+                            "referrer-policy"
+                        ),
+
+                    "no-referrer"
+                );
+
+
+                assert.equal(
+                    response
+                        .headers
+                        .get(
+                            "x-powered-by"
+                        ),
+
+                    null
+                );
+
+
+                assert.ok(
+                    response
+                        .headers
+                        .get(
+                            "content-security-policy"
+                        )
+                );
+            }
+        );
+    }
+);
+
 test("errorHandler converte AppError, incluindo details, e oculta erros inesperados", async () => {
     const app = express();
 

@@ -8,6 +8,12 @@ const {
     createAuthenticate,
 } = require("../../middlewares/authenticate");
 
+const {
+    noStore,
+} = require(
+    "../../middlewares/cacheControl"
+);
+
 
 function createGroupRoutes({
     authService,
@@ -35,6 +41,7 @@ function createGroupRoutes({
      * exigem usuário autenticado.
      */
     router.use(
+        noStore,
         authenticate
     );
 

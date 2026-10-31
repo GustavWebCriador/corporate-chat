@@ -616,6 +616,46 @@ A suíte automatizada deve evoluir juntamente com os serviços, contratos HTTP e
 
 ---
 
+
+### Verificação complementar Cache
+
+A BE-12 possui testes específicos para os controles
+de segurança da API.
+
+Os testes incluem:
+
+- Headers HTTP de segurança.
+- Rate limiting de autenticação e cadastro público.
+- Restrições de CORS.
+- Validação de configuração de runtime.
+- Política `Cache-Control: no-store`.
+- Respostas de autenticação e autorização.
+- Respostas de erros internos sem vazamento de dados.
+- Isolamento do router de mensagens.
+- Verificação de origem no Socket.IO.
+
+Execução específica:
+
+```powershell
+node --test .\tests\api\cache-control.test.js
+node --test .\tests\api\be12-hardening-final.test.js
+```
+
+Regressão:
+
+```powershell
+npm run test:api
+npm run test:realtime
+npm test
+```
+
+Os resultados devem ser registrados com a quantidade
+real de testes executados, aprovados e reprovados.
+
+A documentação de implementação está disponível em
+[Segurança da API](SECURITY.md).
+
+
 ## 18. Documentação relacionada
 
 - [Visão geral da API](README.md)
@@ -627,5 +667,6 @@ A suíte automatizada deve evoluir juntamente com os serviços, contratos HTTP e
 - [Mensagens, entrega e leitura](MESSAGES.md)
 - [Comunicação em tempo real](REALTIME.md)
 - [Arquitetura de persistência](../persistence/README.md)
+- [Segurança da API](SECURITY.md)
 
 A manutenção contínua desses documentos contribui para a rastreabilidade das decisões técnicas, a padronização do desenvolvimento e a qualidade das entregas do Corporate Chat.

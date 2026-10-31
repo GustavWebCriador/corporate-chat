@@ -233,6 +233,7 @@ Consulte:
 | [Grupos](GROUPS.md) | Descrever criação e gerenciamento de grupos |
 | [Mensagens](MESSAGES.md) | Descrever envio, idempotência, entrega e leitura de mensagens |
 | [Comunicação em tempo real](REALTIME.md) | Descrever Socket.IO, autenticação, lifecycle, rooms e segurança realtime |
+| [Segurança da API](SECURITY.md) | Documentar validações, erros, rate limiting, CORS, headers HTTP e política de cache |
 
 ## 11. Evolução da documentação
 
