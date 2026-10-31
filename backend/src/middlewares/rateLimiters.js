@@ -24,9 +24,9 @@ const REGISTRATION_REQUEST_LIMIT =
 
 
 /*
- * 
+ *
  * RESPONSE HANDLER
- * 
+ *
  */
 
 function createRateLimitHandler(
@@ -100,9 +100,9 @@ function createLoginRateLimiter(
 
 
 /*
- * 
+ *
  * REGISTRATION REQUEST RATE LIMITER
- * 
+ *
  *
  * POST /api/v1/registration-requests
  *

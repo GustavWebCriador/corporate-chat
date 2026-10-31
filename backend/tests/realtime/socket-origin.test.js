@@ -36,9 +36,9 @@ const {
 
 
 /*
- * 
+ *
  * CONSTANTES
- * 
+ *
  */
 
 const USER_ID =
@@ -54,9 +54,9 @@ const BLOCKED_ORIGIN =
 
 
 /*
- * 
+ *
  * ENV HELPER
- * 
+ *
  */
 
 async function withEnv(
@@ -136,9 +136,9 @@ async function withEnv(
 
 
 /*
- * 
+ *
  * AUTH SERVICE
- * 
+ *
  */
 
 function createAuthService() {
@@ -190,9 +190,7 @@ function createAuthService() {
 
 
 /*
- * 
  * SERVER
- * 
  */
 
 async function createRealtimeServer() {
@@ -253,9 +251,7 @@ async function createRealtimeServer() {
 
 
 /*
- * 
  * CLIENT
- * 
  */
 
 function createTestClient(
@@ -303,9 +299,7 @@ function createTestClient(
 
 
 /*
- * 
  * CONNECTION HELPERS
- * 
  */
 
 function waitForConnect(
@@ -367,9 +361,7 @@ function waitForConnectError(
 
 
 /*
- * 
  * CLEANUP
- * 
  */
 
 async function closeRealtime({
@@ -406,9 +398,7 @@ async function closeRealtime({
 
 
 /*
- * 
  * TESTES
- * 
  */
 
 test(
