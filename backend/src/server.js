@@ -1,4 +1,7 @@
-require("dotenv").config();
+require(
+    "dotenv"
+).config();
+
 
 const {
     createServer,
@@ -7,43 +10,48 @@ const {
 );
 
 const {
-    createApp,
+    validateRuntimeConfig,
 } = require(
-    "./app"
-);
-
-const {
-    createSocketServer,
-} = require(
-    "./realtime/socketServer"
-);
-
-const {
-    connectPostgres,
-} = require(
-    "./config/db/postgres"
-);
-
-const {
-    connectMongoDB,
-} = require(
-    "./config/db/mongodb"
-);
-
-const {
-    getJwtConfig,
-} = require(
-    "./config/jwt"
+    "./config/runtime"
 );
 
 
 async function startServer() {
     try {
+        const runtimeConfig =
+            validateRuntimeConfig();
+
+
         /*
-         * Falha cedo se JWT_SECRET estiver ausente
-         * ou inválido.
+         * As dependências que leem configuração de banco
+         * só são carregadas depois que o ambiente é validado.
          */
-        getJwtConfig();
+        const {
+            createApp,
+        } = require(
+            "./app"
+        );
+
+
+        const {
+            createSocketServer,
+        } = require(
+            "./realtime/socketServer"
+        );
+
+
+        const {
+            connectPostgres,
+        } = require(
+            "./config/db/postgres"
+        );
+
+
+        const {
+            connectMongoDB,
+        } = require(
+            "./config/db/mongodb"
+        );
 
 
         console.log(
@@ -66,8 +74,8 @@ async function startServer() {
 
 
         /*
-         * Express e Socket.IO compartilham
-         * exatamente o mesmo HTTP server.
+         * Express e Socket.IO compartilham o mesmo servidor
+         * para evitar portas e ciclos de vida independentes.
          */
         const httpServer =
             createServer(
@@ -80,16 +88,11 @@ async function startServer() {
         );
 
 
-        const PORT =
-            process.env.PORT ||
-            3000;
-
-
         httpServer.listen(
-            PORT,
+            runtimeConfig.port,
             () => {
                 console.log(
-                    `[SERVER] Listening on port ${PORT}`
+                    `[SERVER] Listening on port ${runtimeConfig.port}`
                 );
 
                 console.log(
@@ -99,11 +102,11 @@ async function startServer() {
         );
 
     } catch (error) {
-
         console.error(
             "[SERVER] Failed to start server:",
             error
         );
+
 
         process.exit(1);
     }

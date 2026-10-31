@@ -18,6 +18,7 @@ const {
 
 const {
     buildCorsOptions,
+    buildSocketAllowRequest,
 } = require(
     "../config/cors"
 );
@@ -70,6 +71,7 @@ const {
     "./syncHandlers"
 );
 
+
 const AUTH_CONNECTION_CODES =
     new Set([
         "TOKEN_MISSING",
@@ -79,12 +81,6 @@ const AUTH_CONNECTION_CODES =
         "USER_INACTIVE",
     ]);
 
-
-/*
- * =====================================================
- * ERROS DE AUTENTICAÇÃO DO SOCKET
- * =====================================================
- */
 
 function toConnectionError(
     error
@@ -116,29 +112,23 @@ function toConnectionError(
 }
 
 
-/*
- * =====================================================
- * SOCKET.IO SERVER
- * =====================================================
- */
-
 function createSocketServer(
     httpServer,
     {
         authService =
-        defaultAuthService,
+            defaultAuthService,
 
         connectionRegistry =
-        createConnectionRegistry(),
+            createConnectionRegistry(),
 
         messageService =
-        createMessageService(),
+            createMessageService(),
 
         audienceService =
-        createRealtimeAudienceService(),
+            createRealtimeAudienceService(),
 
         syncService =
-        createRealtimeSyncService(),
+            createRealtimeSyncService(),
 
     } = {}
 ) {
@@ -149,41 +139,38 @@ function createSocketServer(
     }
 
 
-   const io =
-    new Server(
-        httpServer,
-        {
-            cors:
-                buildCorsOptions(),
+    const io =
+        new Server(
+            httpServer,
+            {
+                cors:
+                    buildCorsOptions(),
 
-            serveClient:
-                false,
+                /*
+                 * A validação explícita da Origin também cobre
+                 * conexões que utilizam diretamente WebSocket.
+                 */
+                allowRequest:
+                    buildSocketAllowRequest(),
 
-            connectionStateRecovery: {
-                maxDisconnectionDuration:
-                    2 * 60 * 1000,
-
-                skipMiddlewares:
+                serveClient:
                     false,
-            },
-        }
-    );
 
-    /*
-     * =================================================
-     * AUTENTICAÇÃO DA CONEXÃO
-     * =================================================
-     *
-     * Cliente:
-     *
-     * io(url, {
-     *     auth: {
-     *         token,
-     *     },
-     * });
-     *
-     * Não utilizamos query string para JWT.
-     */
+                connectionStateRecovery: {
+                    maxDisconnectionDuration:
+                        2 * 60 * 1000,
+
+                    /*
+                     * A recuperação não deve ignorar a autenticação,
+                     * pois a sessão pode ter sido revogada no intervalo.
+                     */
+                    skipMiddlewares:
+                        false,
+                },
+            }
+        );
+
+
     io.use(
         async (
             socket,
@@ -199,7 +186,7 @@ function createSocketServer(
 
                 if (
                     typeof token !==
-                    "string" ||
+                        "string" ||
                     token.trim()
                         .length === 0
                 ) {
@@ -211,21 +198,6 @@ function createSocketServer(
                 }
 
 
-                /*
-                 * Reutiliza exatamente a mesma
-                 * validação utilizada pela API HTTP.
-                 *
-                 * Isso verifica:
-                 *
-                 * - assinatura JWT;
-                 * - expiração;
-                 * - sub;
-                 * - jti;
-                 * - sessão PostgreSQL;
-                 * - revogação;
-                 * - usuário atual;
-                 * - status ACTIVE.
-                 */
                 const user =
                     await authService
                         .authenticateToken(
@@ -234,9 +206,8 @@ function createSocketServer(
 
 
                 /*
-                 * Disponibilizamos a identidade
-                 * autenticada para os próximos
-                 * handlers realtime.
+                 * Os handlers realtime usam exclusivamente a
+                 * identidade validada pelo servidor.
                  */
                 socket.data.user =
                     user;
@@ -245,7 +216,6 @@ function createSocketServer(
                 return next();
 
             } catch (error) {
-
                 return next(
                     toConnectionError(
                         error
@@ -256,21 +226,9 @@ function createSocketServer(
     );
 
 
-    /*
-     * A BE-10 apenas estabelece a conexão
-     * autenticada.
-     *
-     * Eventos de conversa/mensagem serão
-     * registrados nas próximas etapas.
-     */
     io.on(
         "connection",
         socket => {
-
-            /*
-             * A identidade já foi validada
-             * pelo middleware de autenticação.
-             */
             const userId =
                 socket
                     .data
@@ -278,12 +236,6 @@ function createSocketServer(
                     .user_id;
 
 
-            /*
-             * Registra esta conexão física.
-             *
-             * Um mesmo usuário pode possuir
-             * vários socket.id simultâneos.
-             */
             connectionRegistry
                 .add(
                     userId,
@@ -291,18 +243,13 @@ function createSocketServer(
                 );
 
 
-            /*
-             * Sala privada do usuário.
-             *
-             * Permitirá futuramente enviar
-             * eventos para todas as conexões
-             * pertencentes à mesma identidade.
-             */
             socket.join(
                 getUserRoom(
                     userId
                 )
             );
+
+
             socket.emit(
                 REALTIME_EVENTS.READY,
                 {
@@ -316,6 +263,8 @@ function createSocketServer(
                             .toISOString(),
                 }
             );
+
+
             registerMessageHandlers({
                 io,
                 socket,
@@ -323,23 +272,20 @@ function createSocketServer(
                 audienceService,
             });
 
+
             registerSyncHandlers({
                 socket,
                 syncService,
             });
 
+
             /*
-             * Socket.IO remove automaticamente
-             * o socket de suas rooms durante
-             * a desconexão.
-             *
-             * Nosso registry precisa remover
-             * explicitamente a referência.
+             * Socket.IO remove automaticamente o socket das rooms,
+             * mas o registry da aplicação precisa ser atualizado.
              */
             socket.on(
                 "disconnect",
                 () => {
-
                     connectionRegistry
                         .remove(
                             userId,
