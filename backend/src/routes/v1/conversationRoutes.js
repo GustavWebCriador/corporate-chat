@@ -8,6 +8,13 @@ const {
     createAuthenticate,
 } = require("../../middlewares/authenticate");
 
+const {
+    noStore,
+} = require(
+    "../../middlewares/cacheControl"
+);
+
+
 function createConversationRoutes({
     authService,
     conversationService,
@@ -22,7 +29,7 @@ function createConversationRoutes({
         conversationService,
     });
 
-    router.use(authenticate);
+    router.use(noStore, authenticate);
 
     router.post("/private", controller.createPrivate);
 

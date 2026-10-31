@@ -17,6 +17,12 @@ const {
     "../../middlewares/authenticate"
 );
 
+const {
+    noStore,
+} = require(
+    "../../middlewares/cacheControl"
+);
+
 
 function createDashboardRoutes({
 
@@ -51,9 +57,13 @@ function createDashboardRoutes({
      *
      * Não exige perfil administrativo.
      */
+    router.use(
+        noStore,
+        authenticate
+    );
+
     router.get(
         "/",
-        authenticate,
         controller.getDashboard
     );
 

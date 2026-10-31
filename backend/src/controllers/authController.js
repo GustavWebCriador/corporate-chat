@@ -6,8 +6,6 @@ function createAuthController({ authService }) {
     async function login(req, res) {
         const result = await authService.login(req.body);
 
-        // Resposta com credenciais: nunca deve ser guardada em cache.
-        res.set("Cache-Control", "no-store");
         res.status(200).json({ data: result });
     }
 
@@ -32,8 +30,6 @@ function createAuthController({ authService }) {
             .replace(/^Bearer\s+/i, "");
 
         await authService.logout(token);
-
-        res.set("Cache-Control", "no-store");
 
         return res.status(204).send();
     }

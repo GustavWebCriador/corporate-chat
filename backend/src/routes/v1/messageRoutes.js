@@ -13,6 +13,12 @@ const {
     "../../middlewares/authenticate"
 );
 
+const {
+    noStore,
+} = require(
+    "../../middlewares/cacheControl"
+);
+
 
 function createMessageRoutes({
     authService,
@@ -39,6 +45,7 @@ function createMessageRoutes({
      * exigem usuário autenticado.
      */
     router.use(
+        noStore,
         authenticate
     );
 
