@@ -39,15 +39,19 @@ function createAdminUserRoutes({
             authService,
         });
 
+    const {
+        noStore,
+    } = require(
+        "../../middlewares/cacheControl"
+    );
+
 
     /*
-     * Todas as rotas abaixo exigem:
-     *
-     * 1. usuário autenticado;
-     * 2. usuário ACTIVE;
-     * 3. privilégio administrativo.
-     */
+   * O gerenciamento de usuários exige autenticação ativa
+   * e privilégio administrativo atual.
+   */
     router.use(
+        noStore,
         authenticate,
         requireAdmin
     );
