@@ -1043,6 +1043,24 @@ A aprovação de uma solicitação pública não pode ser utilizada para criar a
 
 ---
 
+### 11.5. Proteção contra abuso e cache HTTP
+
+O endpoint público de solicitação de cadastro utiliza rate limiting para reduzir spam e requisições excessivas.
+
+Política implementada:
+
+- Limite de 5 requisições por IP.
+- Janela de 60 minutos.
+- Requisições aceitas e rejeitadas são contabilizadas.
+- Resposta `429 RATE_LIMITED` ao exceder o limite.
+
+As respostas das solicitações públicas e dos endpoints administrativos recebem:
+
+`Cache-Control: no-store`
+
+As operações administrativas continuam exigindo autenticação JWT e autorização de administrador.
+
+
 ## 12. Testes automatizados
 
 A BE-05 possui cobertura automatizada em três níveis principais:

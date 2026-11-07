@@ -301,6 +301,24 @@ O frontend deve remover o token de seu armazenamento após receber a confirmaç�
 
 O uso de HTTPS é necessário nos ambientes publicados para proteger o tráfego de autenticação.
 
+### Proteção contra tentativas excessivas de login
+
+O endpoint `POST /api/v1/auth/login` utiliza rate limiting.
+
+A política implementada considera:
+
+- Janela de 15 minutos.
+- Limite de 10 tentativas com falha por IP.
+- Requisições bem-sucedidas não permanecem contabilizadas.
+- Resposta `429 RATE_LIMITED` ao exceder o limite.
+
+As respostas de autenticação utilizam a política:
+
+`Cache-Control: no-store`
+
+A limitação de requisições complementa os mecanismos de autenticação, sem substituir a validação de credenciais ou sessões.
+
+
 ## 12. Limitações e evolução futura
 
 A implementação atual realiza revogação individual das sessões.

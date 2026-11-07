@@ -75,6 +75,134 @@ A identidade é obtida exclusivamente a partir do token autenticado.
 
 ---
 
+### 4.1. Validação de origem no handshake
+
+Além da autenticação JWT, o Socket.IO utiliza
+validação de origem durante o estabelecimento
+da conexão.
+
+O servidor configura:
+
+- `buildCorsOptions()`: política CORS.
+- `buildSocketAllowRequest()`: verificação explícita
+  de origem durante o handshake.
+
+A verificação `allowRequest` também protege
+conexões que utilizam diretamente WebSocket,
+nas quais o CORS tradicional do navegador
+não é suficiente como mecanismo de restrição.
+
+As origens autorizadas são determinadas pela
+configuração `CORS_ORIGIN`.
+
+Em produção, essa configuração deve ser explícita,
+não sendo permitido utilizar wildcard.
+
+Requisições com origem não autorizada são
+rejeitadas antes da autenticação JWT.
+
+Clientes que não enviam o header `Origin`
+podem passar pela validação de origem,
+mas continuam sujeitos à autenticação JWT
+e às regras de autorização.
+
+Portanto, a validação de origem representa
+uma camada adicional de proteção e não
+substitui a autenticação.
+
+Arquivos relacionados:
+
+- `backend/src/config/cors.js`
+- `backend/src/realtime/socketServer.js`
+```
+
+### Atualização 2 — Diferenciar erros de origem e autenticação
+
+Na seção **6. Erros de conexão**, após a tabela existente, acrescente:
+
+<CodeBlock language="markdown" editable>
+### 6.1. Rejeição por origem não autorizada
+
+Uma origem não autorizada pode ser rejeitada
+pelo `allowRequest` antes da execução do
+middleware de autenticação.
+
+Essa rejeição ocorre durante o handshake
+e pode resultar em erro de conexão ou transporte
+no cliente Socket.IO.
+
+Nesse cenário, não se deve presumir o recebimento
+dos códigos de autenticação JWT, como
+`TOKEN_INVALID` ou `SOCKET_AUTH_ERROR`.
+
+A interface deve apresentar uma mensagem
+genérica de impossibilidade de conexão,
+sem expor detalhes internos da configuração
+do servidor.
+
+A validação de origem não substitui
+as regras de autenticação e autorização.
+```
+
+Essa distinção é importante para o frontend: uma falha de origem não significa necessariamente que o JWT está inválido.
+
+### Atualização 3 — Corrigir evidências dos testes
+
+Na seção **19. Testes**, inclua os cenários:
+
+```markdown
+- aceitação de handshake com origem autorizada;
+- rejeição de handshake com origem não autorizada antes da autenticação;
+```
+
+Na seção **19.1. Execução**, atualize o resultado de:
+
+```text
+36 testes
+36 aprovados
+0 falhas
+```
+
+Para:
+
+```text
+38 testes
+38 aprovados
+0 falhas
+```
+
+Esse é o resultado comprovado no log de `npm test` que você enviou.
+
+Na seção **20. Arquivos principais**, adicione:
+
+```text
+backend/src/config/cors.js
+backend/tests/realtime/socket-origin.test.js
+```
+
+Os oito eventos já existentes, a política de reconexão e a sincronização incremental não precisam ser substituídos nesta revisão.
+
+## Validação
+
+Depois de salvar `REALTIME.md`, execute:
+
+```powershell
+git diff --check
+git diff --stat
+git status --short
+```
+
+O resultado deverá apresentar quatro arquivos da BE-14:
+
+| Arquivo | Situação esperada |
+|---|---|
+| `ADMIN_USERS.md` | Novo |
+| `DASHBOARD.md` | Modificado |
+| `CONVERSATION.md` | Modificado |
+| `REALTIME.md` | Modificado |
+
+**Próxima etapa:** criar `FRONTEND_INTEGRATION.md`, documentando como o React deverá consumir autenticação, dashboard, conversas, mensagens e eventos Socket.IO. Esse documento servirá de referência para iniciarmos a FE-01.
+
 ## 5. Fluxo de autenticação
 
 ```text
