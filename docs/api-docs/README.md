@@ -81,11 +81,28 @@ Verifica a disponibilidade das dependências monitoradas pela aplicação, inclu
 
 ### 6.3. Administração de usuários
 
-A API também possui funcionalidades administrativas para gerenciamento de usuários, incluindo cadastro, listagem, desativação e redefinição de senhas.
+A API disponibiliza funcionalidades administrativas
+para gerenciamento de usuários, incluindo cadastro,
+consulta, listagem, alteração de status e redefinição
+de senhas.
 
-Essas operações são protegidas por autenticação e exigem permissões administrativas.
+Todas as operações exigem autenticação JWT e
+privilégios administrativos.
 
-Os caminhos e contratos completos desses endpoints devem ser consultados na implementação de `backend/src/routes/`.
+| Método | Endpoint | Acesso | Finalidade |
+|---|---|---|---|
+| POST | `/api/v1/admin/users` | Administrador | Cadastrar usuário |
+| GET | `/api/v1/admin/users` | Administrador | Listar usuários |
+| GET | `/api/v1/admin/users/:userId` | Administrador | Consultar usuário |
+| PATCH | `/api/v1/admin/users/:userId/status` | Administrador | Alterar status |
+| PATCH | `/api/v1/admin/users/:userId/password` | Administrador | Redefinir senha |
+
+As operações utilizam os mecanismos de
+autenticação, autorização e validação do backend.
+
+Consulte a documentação detalhada:
+
+**[Administração de usuários](ADMIN_USERS.md)**
 
 ### 6.4. Solicitação de cadastro
 
@@ -213,27 +230,44 @@ A aplicação possui testes automatizados para:
 - Ciclo de vida e múltiplas conexões por usuário.
 - Rooms privadas e registry de conexões realtime.
 
+A suíte automatizada contempla também os mecanismos
+de segurança da API, incluindo validação de origens,
+rate limiting, headers HTTP, privacidade de cache,
+autenticação de conexões Socket.IO e sincronização
+após reconexão.
+
+Na regressão completa registrada durante o
+desenvolvimento do backend, foram executados
+330 testes, todos aprovados, abrangendo
+integridade da persistência, integração,
+consultas, API HTTP e comunicação realtime.
+
+A documentação dos contratos utilizados pelo
+frontend está disponível em
+
+[Integração com o frontend](FRONTEND_INTEGRATION.md).
+
 Os testes da API utilizam o Node.js Test Runner. Os testes de integração de persistência executam operações controladas nos bancos do ambiente de desenvolvimento.
-
 Consulte:
-
 **[Guia de testes automatizados](TESTING.md)**
 
 ## 10. Documentação relacionada
 
+
 | Documento | Finalidade |
 |---|---|
-| [Autenticação e gerenciamento de sessões](AUTHENTICATION.md) | Descrever JWT, login, logout, persistência e segurança das sessões |
-| [Testes automatizados](TESTING.md) | Orientar a execução e validação dos testes |
-| [Documentação de persistência](../persistence/README.md) | Descrever a arquitetura e as operações de persistência |
-| [Solicitação de cadastro](REGISTRATION.md) | Descrever o fluxo de solicitação, aprovação, rejeição e criação do usuário |
-| [Dashboard](DASHBOARD.md) | Descrever o endpoint, contatos, conversas e regras de segurança do dashboard |
-| [Gerenciamento de grupos](GROUPS.md) | Descrever criação, participantes, autorização, saída e remoção em grupos |
-| [Conversas](CONVERSATION.md) | Descrever criação, listagem e histórico de conversas |
-| [Grupos](GROUPS.md) | Descrever criação e gerenciamento de grupos |
-| [Mensagens](MESSAGES.md) | Descrever envio, idempotência, entrega e leitura de mensagens |
-| [Comunicação em tempo real](REALTIME.md) | Descrever Socket.IO, autenticação, lifecycle, rooms e segurança realtime |
-| [Segurança da API](SECURITY.md) | Documentar validações, erros, rate limiting, CORS, headers HTTP e política de cache |
+| [Autenticação e gerenciamento de sessões](AUTHENTICATION.md) | Documentar login, JWT, logout, revogação e segurança das sessões |
+| [Administração de usuários](ADMIN_USERS.md) | Documentar cadastro, consulta, alteração de status e redefinição de senhas |
+| [Solicitação de cadastro](REGISTRATION.md) | Descrever solicitação, aprovação, rejeição e criação de usuários |
+| [Dashboard](DASHBOARD.md) | Documentar contatos, conversas e dados necessários à interface inicial |
+| [Conversas privadas e histórico](CONVERSATION.md) | Documentar criação, reutilização, listagem e histórico paginado |
+| [Gerenciamento de grupos](GROUPS.md) | Documentar criação, participantes, permissões e saída de grupos |
+| [Mensagens, entrega e leitura](MESSAGES.md) | Documentar envio, idempotência e checkpoints de entrega e leitura |
+| [Comunicação em tempo real](REALTIME.md) | Documentar Socket.IO, autenticação, eventos, ACKs, reconexão e sincronização |
+| [Segurança da API](SECURITY.md) | Documentar validações, headers HTTP, CORS, rate limiting e privacidade de cache |
+| [Integração com o frontend](FRONTEND_INTEGRATION.md) | Orientar o consumo da API HTTP e do Socket.IO pela aplicação React |
+| [Testes automatizados](TESTING.md) | Orientar execução, validação e evidências dos testes |
+| [Documentação de persistência](../persistence/README.md) | Descrever a arquitetura e a integração PostgreSQL/MongoDB |
 
 ## 11. Evolução da documentação
 
