@@ -73,7 +73,13 @@ Uma mensagem marcada como lida também é considerada entregue.
 
 ### Falha
 
-Representa falha no envio ou processamento. A apresentação desse estado é responsabilidade da interface cliente a partir da falha da operação HTTP ou, futuramente, da camada de comunicação em tempo real.
+Representa uma falha no envio ou processamento de uma mensagem.
+
+A interface deverá tratar erros retornados pela API HTTP ou pelos ACKs do Socket.IO.
+
+Em falhas de conexão ou timeout, a mensagem pode ter sido persistida sem que o cliente tenha recebido a confirmação.
+
+Reenvios devem preservar o mesmo `clientMessageId`, permitindo que o backend aplique a regra de idempotência.
 
 ---
 
@@ -269,6 +275,14 @@ Nos endpoints de entrega e leitura, a autorização do participante é validada 
 Dessa forma, um usuário que não possua vínculo `ACTIVE` com a conversa recebe `403 USER_NOT_ACTIVE_MEMBER` sem que a API revele se determinada mensagem ou conversa possui conteúdo acessível.
 
 Essa ordem de validação reduz a exposição de informações sobre recursos aos quais o usuário não possui acesso.
+
+### Privacidade das respostas
+
+Os endpoints de mensagens, entrega e leitura utilizam:
+
+`Cache-Control: no-store`
+
+O middleware de cache é executado antes da autenticação, abrangendo também respostas de erro produzidas pelas rotas protegidas.
 
 ---
 

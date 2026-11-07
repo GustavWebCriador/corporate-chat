@@ -384,6 +384,18 @@ status = ACTIVE
 
 Além disso, `created_by` da conversa precisa corresponder ao criador responsável.
 
+### Privacidade das respostas HTTP
+
+As rotas de grupos utilizam o middleware `noStore`, aplicado antes da autenticação.
+
+As respostas recebem:
+
+`Cache-Control: no-store`
+
+Essa proteção também se aplica às respostas de autenticação e autorização produzidas após o middleware.
+
+A política evita o armazenamento de respostas sensíveis, mas não substitui as verificações de participação e permissão executadas pelo backend.
+
 ---
 
 ## 11. Persistência
