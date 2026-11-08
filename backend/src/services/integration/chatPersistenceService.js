@@ -502,17 +502,53 @@ async function createMessage(
     }
 
 
-    /*
-     * Atualizamos os metadados
-     * da conversa.
-     */
-    conversation.last_message_id =
-        message._id;
+/*
+ * Atualização atômica dos metadados da conversa.
+ *
+ * Sob concorrência, uma mensagem mais antiga
+ * não pode sobrescrever a referência de uma
+ * mensagem mais recente.
+ *
+ * A ordenação segue o mesmo critério utilizado
+ * na consulta de mensagens:
+ *
+ * created_at DESC, _id DESC.
+ */
+await Conversation.updateOne(
+    {
+        _id: conversation._id,
 
-    conversation.last_message_at =
-        message.created_at;
+        $or: [
+            // Conversa ainda não possui mensagens.
+            {
+                last_message_at: null,
+            },
 
-    await conversation.save();
+            // A nova mensagem tem data posterior.
+            {
+                last_message_at: {
+                    $lt: message.created_at,
+                },
+            },
+
+            // Mesma data: desempatar pelo ObjectId.
+            {
+                last_message_at: message.created_at,
+
+                last_message_id: {
+                    $lt: message._id,
+                },
+            },
+        ],
+    },
+
+    {
+        $set: {
+            last_message_id: message._id,
+            last_message_at: message.created_at,
+        },
+    }
+);
 
 
     return {
