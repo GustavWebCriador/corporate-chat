@@ -1,0 +1,148 @@
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER obrigatorio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obrigatorio}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB obrigatorio}
+
+    volumes:
+      - postgres_deploy_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  mongodb:
+    image: mongo:8
+    restart: unless-stopped
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?MONGO_USER obrigatorio}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD obrigatorio}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:?MONGO_DB obrigatorio}
+
+    volumes:
+      - mongodb_deploy_data:/data/db
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet
+          --username "$${MONGO_INITDB_ROOT_USERNAME}"
+          --password "$${MONGO_INITDB_ROOT_PASSWORD}"
+          --authenticationDatabase admin
+          --eval "quit(db.adminCommand('ping').ok ? 0 : 2)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  migrate:
+    profiles: ["maintenance"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: migrate
+
+    env_file:
+      - ./deploy/.env
+
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    command: ["npm", "run", "db:migrate"]
+
+    restart: "no"
+
+  mongo-indexes:
+    profiles: ["maintenance"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: migrate
+
+    env_file:
+      - ./deploy/.env
+
+    environment:
+      NODE_ENV: production
+      MONGO_HOST: mongodb
+      MONGO_PORT: "27017"
+
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+    command:
+      - node
+      - database/mongodb/sync-indexes.js
+
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - ./deploy/.env
+
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+
+      MONGO_HOST: mongodb
+      MONGO_PORT: "27017"
+
+    ports:
+      - "127.0.0.1:3101:3000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/api/v1/health',
+          {signal:AbortSignal.timeout(3000)})
+          .then(r=>process.exit(r.status===200?0:1))
+          .catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+    stop_grace_period: 25s
+
+volumes:
+  postgres_deploy_data:
+  mongodb_deploy_data:

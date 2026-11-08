@@ -1,104 +1,130 @@
-require(
-    "dotenv"
-).config();
 
+"use strict";
 
-const {
-    createServer,
-} = require(
-    "node:http"
-);
+require("dotenv").config();
+
+const { createServer } = require("node:http");
 
 const {
     validateRuntimeConfig,
-} = require(
-    "./config/runtime"
-);
+} = require("./config/runtime");
 
+const {
+    createShutdown,
+} = require("./operations/shutdown");
 
 async function startServer() {
+    let httpServer;
+    let io;
+    let sequelize;
+    let mongoose;
+
     try {
-        const runtimeConfig =
-            validateRuntimeConfig();
+        const { port } = validateRuntimeConfig();
 
-
-        /*
-         * As dependências que leem configuração de banco
-         * só são carregadas depois que o ambiente é validado.
-         */
-        const {
-            createApp,
-        } = require(
-            "./app"
-        );
-
+        // Carregamento após a validação do ambiente.
+        const { createApp } = require("./app");
 
         const {
             createSocketServer,
-        } = require(
-            "./realtime/socketServer"
-        );
+        } = require("./realtime/socketServer");
 
-
-        const {
-            connectPostgres,
-        } = require(
-            "./config/db/postgres"
-        );
-
+        const postgres =
+            require("./config/db/postgres");
 
         const {
             connectMongoDB,
-        } = require(
-            "./config/db/mongodb"
-        );
+        } = require("./config/db/mongodb");
 
+        sequelize = postgres.sequelize;
+        mongoose = require("mongoose");
 
-        console.log(
-            "[DATABASE] Connecting..."
-        );
+        console.log("[DATABASE] Connecting...");
 
-
-        await connectPostgres();
-
+        await postgres.connectPostgres();
         await connectMongoDB();
-
 
         console.log(
             "[DATABASE] Persistence environment ready."
         );
 
+        // HTTP e Socket.IO compartilham o servidor.
+        httpServer = createServer(createApp());
+        io = createSocketServer(httpServer);
 
-        const app =
-            createApp();
+        await new Promise((resolve, reject) => {
+            const onError = (error) => reject(error);
 
+            httpServer.once("error", onError);
 
-        /*
-         * Express e Socket.IO compartilham o mesmo servidor
-         * para evitar portas e ciclos de vida independentes.
-         */
-        const httpServer =
-            createServer(
-                app
+            httpServer.listen(port, () => {
+                httpServer.off("error", onError);
+                resolve();
+            });
+        });
+
+        const shutdown = createShutdown({
+            httpServer,
+            io,
+            sequelize,
+            mongoose,
+        });
+
+        let shuttingDown = false;
+
+        function onSignal(signal) {
+            if (shuttingDown) return;
+
+            shuttingDown = true;
+
+            console.log(
+                `[SERVER] ${signal} recebido. Encerrando...`
             );
 
+            // Limite máximo para evitar processo travado.
+            const watchdog = setTimeout(() => {
+                console.error(
+                    "[SERVER] Tempo limite de desligamento excedido."
+                );
 
-        createSocketServer(
-            httpServer
+                process.exit(1);
+            }, 15000);
+
+            shutdown()
+                .then(() => {
+                    console.log(
+                        "[SERVER] Encerramento concluído."
+                    );
+                })
+                .catch((error) => {
+                    console.error(
+                        "[SERVER] Erro no encerramento:",
+                        error
+                    );
+
+                    process.exitCode = 1;
+                })
+                .finally(() => {
+                    clearTimeout(watchdog);
+                });
+        }
+
+        process.on(
+            "SIGINT",
+            () => onSignal("SIGINT")
         );
 
+        process.on(
+            "SIGTERM",
+            () => onSignal("SIGTERM")
+        );
 
-        httpServer.listen(
-            runtimeConfig.port,
-            () => {
-                console.log(
-                    `[SERVER] Listening on port ${runtimeConfig.port}`
-                );
+        console.log(
+            `[SERVER] Listening on port ${port}`
+        );
 
-                console.log(
-                    "[SOCKET.IO] Realtime server ready."
-                );
-            }
+        console.log(
+            "[SOCKET.IO] Realtime server ready."
         );
 
     } catch (error) {
@@ -107,10 +133,25 @@ async function startServer() {
             error
         );
 
+        // Fecha conexões abertas parcialmente
+        // caso ocorra erro durante a inicialização.
+        try {
+            await createShutdown({
+                httpServer,
+                io,
+                sequelize,
+                mongoose,
+            })();
 
-        process.exit(1);
+        } catch (cleanupError) {
+            console.error(
+                "[SERVER] Startup cleanup failed:",
+                cleanupError
+            );
+        }
+
+        process.exitCode = 1;
     }
 }
-
 
 startServer();
