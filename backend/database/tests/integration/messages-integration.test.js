@@ -2272,3 +2272,91 @@ test(
         );
     }
 );
+
+
+test(
+    "INTEGRATION: envios simultâneos preservam a última mensagem correta",
+
+    async () => {
+        const userA = await createTestUser();
+        const userB = await createTestUser();
+
+        const conversation = await createPrivate(
+            userA,
+            userB
+        );
+
+        const conversationId =
+            conversation._id.toString();
+
+        const totalMessages = 20;
+
+        const results = await Promise.all(
+            Array.from(
+                { length: totalMessages },
+                (_, index) =>
+                    messageService.sendMessage({
+                        conversationId,
+
+                        senderId:
+                            index % 2 === 0
+                                ? userA.user_id
+                                : userB.user_id,
+
+                        clientMessageId:
+                            `be17-${randomUUID()}`,
+
+                        content:
+                            `Mensagem concorrente ${index + 1}`,
+                    })
+            )
+        );
+
+        assert.equal(
+            results.length,
+            totalMessages
+        );
+
+        assert.ok(
+            results.every(
+                result => result.reused === false
+            )
+        );
+
+        const count = await Message.countDocuments({
+            conversation_id: conversation._id,
+        });
+
+        assert.equal(
+            count,
+            totalMessages
+        );
+
+        const latestMessage = await Message.findOne({
+            conversation_id: conversation._id,
+        })
+            .sort({
+                created_at: -1,
+                _id: -1,
+            })
+            .lean();
+
+        const updatedConversation =
+            await Conversation.findById(
+                conversation._id
+            ).lean();
+
+        assert.ok(latestMessage);
+        assert.ok(updatedConversation);
+
+        assert.equal(
+            String(updatedConversation.last_message_id),
+            String(latestMessage._id)
+        );
+
+        assert.equal(
+            updatedConversation.last_message_at.getTime(),
+            latestMessage.created_at.getTime()
+        );
+    }
+);
