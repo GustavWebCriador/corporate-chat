@@ -12,3 +12,7 @@ yarn-error.log*
 
 # Repomix - arquivos locais de análise
 repomix-output*.xml
+
+# Ambiente operacional local
+/deploy/.env
+/deploy/backups/
