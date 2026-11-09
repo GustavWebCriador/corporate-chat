@@ -1721,6 +1721,26 @@ npm run evidence:persistence
 
 ---
 
+## Release do Backend — Marco 2
+
+O backend MVP do Corporate Chat contempla autenticação JWT,
+administração de usuários, solicitações de cadastro,
+dashboard, conversas privadas, grupos, mensagens,
+confirmações de entrega e leitura e comunicação Socket.IO.
+
+A persistência utiliza PostgreSQL e MongoDB.
+
+### Documentação da release
+
+- [Relatório de release](docs/releases/BE-15-RELATORIO-DE-RELEASE.md)
+- [Roteiro de demonstração](docs/releases/BE-15-ROTEIRO-DEMONSTRACAO.md)
+- [Notas da versão](docs/releases/BE-15-NOTAS-DA-VERSAO.md)
+- [Runbook operacional](docs/operations/RUNBOOK-OPERACIONAL.md)
+
+Esta release corresponde ao backend do MVP.
+O desenvolvimento e a integração do frontend React
+seguem seu próprio planejamento.
+
 # Projeto acadêmico
 
 O **Corporate Chat** é um projeto acadêmico desenvolvido para proporcionar uma solução de comunicação corporativa organizada, segura e preparada para evolução futura.
