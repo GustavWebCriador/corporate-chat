@@ -17,6 +17,28 @@ const httpClient = axios.create({
     },
 });
 
+let authToken = null;
+
+function setAuthToken(token) {
+    authToken = token || null;
+}
+
+/**
+ * Interceptor de requisições.
+ *
+ * Adiciona o JWT automaticamente nas
+ * requisições quando houver autenticação.
+ */
+httpClient.interceptors.request.use((config) => {
+    if (authToken) {
+        config.headers.Authorization =
+            `Bearer ${authToken}`;
+    }
+
+    return config;
+});
+
+
 httpClient.interceptors.response.use(
     (response) => {
         if (response.status === 204) {
@@ -47,4 +69,5 @@ httpClient.interceptors.response.use(
     }
 );
 
-export { httpClient };
+
+export { httpClient, setAuthToken };
