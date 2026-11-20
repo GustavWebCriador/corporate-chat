@@ -1,0 +1,22 @@
+
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+    --color-navy-950: #0b0f1a;
+    --color-navy-900: #111827;
+    --color-navy-800: #1a2235;
+    --color-navy-700: #243049;
+
+    --color-teal-500: #14b8a6;
+    --color-teal-400: #2dd4bf;
+    --color-teal-300: #5eead4;
+
+    --color-slate-400: #94a3b8;
+    --color-slate-300: #cbd5e1;
+
+    --color-amber-400: #fbbf24;
+    --color-rose-500: #f43f5e;
+}
