@@ -6,6 +6,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./app/App";
 import { AuthProvider } from "./features/auth/context/AuthProvider";
 
+import "./styles/tailwind.css";
 import "./styles/global.css";
 
 createRoot(document.getElementById("root")).render(

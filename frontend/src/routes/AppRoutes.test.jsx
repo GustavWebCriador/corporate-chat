@@ -23,21 +23,18 @@ import {
 
 import { AppRoutes } from "./AppRoutes";
 import { useAuth } from "../features/auth/hooks/useAuth";
+import { dashboardService } from "../services/api/dashboardService";
 
-/**
- * Simula o contexto de autenticação.
- *
- * Os testes não precisam realizar login
- * real nem acessar o banco de dados.
- */
 vi.mock("../features/auth/hooks/useAuth", () => ({
     useAuth: vi.fn(),
 }));
 
-/**
- * Componente auxiliar para verificar
- * a rota atual durante os testes.
- */
+vi.mock("../services/api/dashboardService", () => ({
+    dashboardService: {
+        getDashboard: vi.fn(),
+    },
+}));
+
 function LocationSpy() {
     const location = useLocation();
 
@@ -48,10 +45,6 @@ function LocationSpy() {
     );
 }
 
-/**
- * Renderiza o roteamento usando
- * uma rota inicial específica.
- */
 function renderRoutes(initialPath) {
     return render(
         <MemoryRouter initialEntries={[initialPath]}>
@@ -61,11 +54,9 @@ function renderRoutes(initialPath) {
     );
 }
 
-/**
- * Configura uma sessão não autenticada
- * antes de cada teste.
- */
 beforeEach(() => {
+    vi.clearAllMocks();
+
     useAuth.mockReturnValue({
         user: null,
         token: null,
@@ -74,35 +65,32 @@ beforeEach(() => {
         login: vi.fn(),
         logout: vi.fn(),
     });
+
+    dashboardService.getDashboard.mockResolvedValue({
+        contacts: [],
+        conversations: [],
+    });
 });
 
 afterEach(() => {
     cleanup();
-    vi.clearAllMocks();
 });
 
-/**
- * TESTE 1
- *
- * A página pública de solicitação
- * deve estar disponível.
- */
 test("deve apresentar a página de solicitação de acesso", () => {
     renderRoutes("/solicitar-acesso");
 
     expect(
         screen.getByRole("heading", {
             name: "Solicitar acesso",
+            level: 1,
         })
     ).toBeInTheDocument();
+
+    expect(
+        screen.getByTestId("current-route")
+    ).toHaveTextContent("/solicitar-acesso");
 });
 
-/**
- * TESTE 2
- *
- * Rotas inexistentes devem apresentar
- * a página de erro 404 da aplicação.
- */
 test("deve apresentar página não encontrada", () => {
     renderRoutes("/pagina-inexistente");
 
@@ -113,12 +101,6 @@ test("deve apresentar página não encontrada", () => {
     ).toBeInTheDocument();
 });
 
-/**
- * TESTE 3
- *
- * Usuário não autenticado não pode
- * acessar diretamente o dashboard.
- */
 test("deve redirecionar usuário não autenticado para login", async () => {
     renderRoutes("/dashboard");
 
@@ -130,17 +112,18 @@ test("deve redirecionar usuário não autenticado para login", async () => {
 
     expect(
         screen.queryByRole("heading", {
-            name: "Área autenticada",
+            name: "Dashboard",
+            level: 1,
         })
     ).not.toBeInTheDocument();
+
+    // Rotas protegidas não devem consultar dados
+    // do dashboard sem uma sessão autenticada.
+    expect(
+        dashboardService.getDashboard
+    ).not.toHaveBeenCalled();
 });
 
-/**
- * TESTE 4
- *
- * Usuário autenticado pode
- * acessar o dashboard protegido.
- */
 test("deve permitir acesso ao dashboard autenticado", () => {
     useAuth.mockReturnValue({
         user: {
@@ -157,8 +140,15 @@ test("deve permitir acesso ao dashboard autenticado", () => {
     renderRoutes("/dashboard");
 
     expect(
+        screen.getByRole("complementary", {
+            name: "Identidade da aplicação",
+        })
+    ).toBeInTheDocument();
+
+    expect(
         screen.getByRole("heading", {
-            name: "Área autenticada",
+            name: "Dashboard",
+            level: 1,
         })
     ).toBeInTheDocument();
 
