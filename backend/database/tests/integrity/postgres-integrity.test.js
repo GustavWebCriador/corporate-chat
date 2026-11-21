@@ -235,6 +235,9 @@ async function insertRequest(
  * 23505 = UNIQUE violation
  * 23514 = CHECK violation
  * 23503 = FOREIGN KEY violation
+ * 23001 = RESTRICT violation (retornado pelo PostgreSQL 18 em ON DELETE RESTRICT)
+ *
+ * expectedCode aceita um código ou uma lista de códigos válidos.
  */
 async function expectPostgresError(
     action,
@@ -251,9 +254,14 @@ async function expectPostgresError(
                 error?.parent?.code;
 
 
-            assert.equal(
-                code,
-                expectedCode
+            const acceptedCodes =
+                Array.isArray(expectedCode)
+                    ? expectedCode
+                    : [expectedCode];
+
+            assert.ok(
+                acceptedCodes.includes(code),
+                `Código PostgreSQL ${code} não está entre ${acceptedCodes.join(", ")}`
             );
 
 
@@ -631,7 +639,11 @@ test(
                             }
                         ),
 
-                    "23503"
+                    [
+                        // 23503 no PostgreSQL 16 (CI); 23001 no PostgreSQL 18.
+                        "23503",
+                        "23001",
+                    ]
                 );
             }
         );
