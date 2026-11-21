@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { conversationService } from "../../../services/api/conversationService";
 import { useRealtime } from "../../realtime/hooks/useRealtime";
@@ -90,7 +90,9 @@ export function useConversationMessages(
     const realtimeRef = useRef(realtime);
     const readyAtLoadRef = useRef(null);
 
-    useEffect(() => {
+    // Atualizado no mesmo commit da renderização (antes da pintura): um
+    // evento "online" logo após a falha precisa enxergar a mensagem FAILED.
+    useLayoutEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
 
