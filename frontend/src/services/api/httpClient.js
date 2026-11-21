@@ -18,9 +18,26 @@ const httpClient = axios.create({
 });
 
 let authToken = null;
+let unauthorizedHandler = null;
 
 function setAuthToken(token) {
     authToken = token || null;
+}
+
+/**
+ * Registra a ação executada quando uma requisição autenticada
+ * recebe 401 (sessão expirada, revogada ou inválida — RF02).
+ */
+function setUnauthorizedHandler(handler) {
+    unauthorizedHandler =
+        typeof handler === "function" ? handler : null;
+}
+
+// Rotas cuja resposta 401 não indica perda de sessão.
+const SESSION_EXEMPT_PATHS = ["/auth/login", "/auth/logout"];
+
+function isSessionExempt(url = "") {
+    return SESSION_EXEMPT_PATHS.some((path) => url.endsWith(path));
 }
 
 /**
@@ -62,6 +79,21 @@ httpClient.interceptors.response.use(
             apiError.details =
                 error.response.data?.error?.details;
 
+            const headers = error.config?.headers;
+            const sentWithToken = Boolean(
+                headers?.get?.("Authorization") ??
+                headers?.Authorization
+            );
+
+            if (
+                apiError.status === 401 &&
+                sentWithToken &&
+                !isSessionExempt(error.config?.url) &&
+                unauthorizedHandler
+            ) {
+                unauthorizedHandler(apiError);
+            }
+
             return Promise.reject(apiError);
         }
 
@@ -70,4 +102,4 @@ httpClient.interceptors.response.use(
 );
 
 
-export { httpClient, setAuthToken };
+export { httpClient, setAuthToken, setUnauthorizedHandler };

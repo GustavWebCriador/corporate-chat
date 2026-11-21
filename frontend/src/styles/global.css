@@ -41,3 +41,11 @@ a {
     border: 1px solid #e5e7eb;
     border-radius: 12px;
 }
+.session-message {
+    margin: 16px 0 0;
+    padding: 10px 12px;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e;
+}

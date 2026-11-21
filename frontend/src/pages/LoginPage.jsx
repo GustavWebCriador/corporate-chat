@@ -4,6 +4,7 @@ import { ApiStatus } from "../components/ApiStatus";
 import { useAuth } from "../features/auth/hooks/useAuth";
 import {
     Link,
+    Navigate,
     useNavigate,
     useLocation,
 } from "react-router-dom";
@@ -27,9 +28,9 @@ export function LoginPage() {
     // Contexto de autenticação.
     const {
         login,
-        user,
         loading,
         isAuthenticated,
+        sessionMessage,
     } = useAuth();
 
     /**
@@ -66,6 +67,11 @@ export function LoginPage() {
         }
     }
 
+    // Usuário já autenticado não precisa ver o formulário.
+    if (isAuthenticated) {
+        return <Navigate to={from} replace />;
+    }
+
     return (
         <section className="page-card">
             <h1>Corporate Chat</h1>
@@ -74,77 +80,69 @@ export function LoginPage() {
                 Ambiente de comunicação corporativa.
             </p>
 
-            {isAuthenticated ? (
-                <div role="status">
-                    <h2>Autenticação realizada!</h2>
-
-                    <p>
-                        Bem-vindo, {user?.name || "usuário"}.
-                    </p>
-
-                    <p>
-                        Sua sessão foi iniciada com sucesso.
-                    </p>
-                </div>
-            ) : (
-                <form
-                    onSubmit={handleSubmit}
-                    style={{
-                        display: "grid",
-                        gap: "0.75rem",
-                        marginTop: "1.5rem",
-                    }}
-                >
-                    <label htmlFor="email">
-                        E-mail
-                    </label>
-
-                    <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(event) =>
-                            setEmail(event.target.value)
-                        }
-                        placeholder="seuemail@empresa.com.br"
-                        autoComplete="username"
-                        disabled={loading}
-                        required
-                    />
-
-                    <label htmlFor="password">
-                        Senha
-                    </label>
-
-                    <input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(event) =>
-                            setPassword(event.target.value)
-                        }
-                        placeholder="Digite sua senha"
-                        autoComplete="current-password"
-                        disabled={loading}
-                        required
-                    />
-
-                    {error && (
-                        <p role="alert">
-                            {error}
-                        </p>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                    >
-                        {loading
-                            ? "Autenticando..."
-                            : "Entrar"}
-                    </button>
-                </form>
+            {sessionMessage && !error && (
+                <p role="status" className="session-message">
+                    {sessionMessage}
+                </p>
             )}
+
+            <form
+                onSubmit={handleSubmit}
+                style={{
+                    display: "grid",
+                    gap: "0.75rem",
+                    marginTop: "1.5rem",
+                }}
+            >
+                <label htmlFor="email">
+                    E-mail
+                </label>
+
+                <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(event) =>
+                        setEmail(event.target.value)
+                    }
+                    placeholder="seuemail@empresa.com.br"
+                    autoComplete="username"
+                    disabled={loading}
+                    required
+                />
+
+                <label htmlFor="password">
+                    Senha
+                </label>
+
+                <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) =>
+                        setPassword(event.target.value)
+                    }
+                    placeholder="Digite sua senha"
+                    autoComplete="current-password"
+                    disabled={loading}
+                    required
+                />
+
+                {error && (
+                    <p role="alert">
+                        {error}
+                    </p>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                >
+                    {loading
+                        ? "Autenticando..."
+                        : "Entrar"}
+                </button>
+            </form>
 
             <p>
                 Ainda não possui acesso?
