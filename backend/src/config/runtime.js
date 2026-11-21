@@ -10,6 +10,12 @@ const {
     "./cors"
 );
 
+const {
+    getTrustProxySetting,
+} = require(
+    "./proxy"
+);
+
 
 const VALID_NODE_ENVS =
     new Set([
@@ -160,6 +166,7 @@ function validateRuntimeConfig() {
      */
     getJwtConfig();
     getAllowedCorsOrigins();
+    getTrustProxySetting();
 
 
     return {

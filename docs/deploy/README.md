@@ -9,7 +9,7 @@
 | Entrega | Documento | O que fica pronto |
 |---|---|---|
 | DEP-01.1 — Conta e servidor | [DEP-01-1-CONTA-E-SERVIDOR.md](DEP-01-1-CONTA-E-SERVIDOR.md) | Conta no plano Free protegida, alerta de gastos, instância EC2 preparada automaticamente (Docker, firewall, SSH só com chave, swap, atualizações de segurança) |
-| DEP-01.2 — Publicação | DEP-01-2-PUBLICACAO.md (próxima entrega) | Aplicação publicada com HTTPS automático, frontend e API no mesmo endereço, administrador inicial criado sem senha conhecida |
+| DEP-01.2 — Publicação | [DEP-01-2-PUBLICACAO.md](DEP-01-2-PUBLICACAO.md) | Aplicação publicada com HTTPS automático, frontend e API no mesmo endereço, administrador inicial criado sem senha conhecida |
 | DEP-01.3 — Segurança e recuperação | DEP-01-3-SEGURANCA-E-RECUPERACAO.md (próxima entrega) | Verificação de segurança automatizada, backup diário, ensaio de restauração e plano de encerramento |
 
 ## 2. Arquitetura

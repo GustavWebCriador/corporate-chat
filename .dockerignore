@@ -1,0 +1,22 @@
+# Contexto de build da raiz (deploy/aws/proxy.Dockerfile).
+# Só o frontend e o Caddyfile são necessários; todo o resto fica de fora.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!frontend/.env.example
+**/*.log
+**/*.pem
+**/*.bak
+.git
+backend
+docs
+deploy/backups
+deploy/.env
+*.pdf
+*.md
+*.jpeg
+*.jpg
+*.png
+!frontend/public/**

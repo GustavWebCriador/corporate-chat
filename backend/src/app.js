@@ -17,6 +17,7 @@ const notFound = require("./middlewares/notFound");
 const errorHandler = require("./middlewares/errorHandler");
 const { buildCorsOptions, } = require("./config/cors");
 const { createSecurityHeaders, } = require("./middlewares/securityHeaders");
+const { getTrustProxySetting, } = require("./config/proxy");
 
 const API_PREFIX = "/api/v1";
 
@@ -34,11 +35,22 @@ function createApp({
     conversationService = createConversationService(),
     groupService = createGroupService(),
     messageService = createMessageService(),
+    trustProxy = getTrustProxySetting(),
 } = {}) {
     const app = express();
 
     app.disable(
         "x-powered-by"
+    );
+
+
+    /*
+     * Atrás do proxy HTTPS (DEP-01.2), o IP real do cliente vem no
+     * X-Forwarded-For. Desligado por padrão (ver config/proxy.js).
+     */
+    app.set(
+        "trust proxy",
+        trustProxy
     );
 
 

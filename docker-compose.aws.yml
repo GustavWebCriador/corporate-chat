@@ -1,0 +1,52 @@
+# Corporate Chat — DEP-01.2 | Acréscimos para o servidor AWS
+#
+# Usado junto com o docker-compose.deploy.yml (BE-18):
+#
+#   docker compose -p corporate-chat-deploy --env-file deploy/.env \
+#       -f docker-compose.deploy.yml -f docker-compose.aws.yml <comando>
+#
+# Prefira o script deploy/scripts/publicar.sh, que executa a sequência completa.
+
+services:
+  mongodb:
+    # A t4g.small tem 2 GB: limita o cache do MongoDB para sobrar memória
+    # para PostgreSQL, API e proxy.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
+
+  api:
+    environment:
+      # Um proxy (Caddy) à frente da API: o limite de tentativas usa o IP real.
+      TRUST_PROXY: "1"
+      # Frontend e API no mesmo endereço público.
+      CORS_ORIGIN: https://${CHAT_DOMAIN:?CHAT_DOMAIN obrigatorio}
+
+  proxy:
+    build:
+      context: .
+      dockerfile: deploy/aws/proxy.Dockerfile
+      args:
+        CHAT_DOMAIN: ${CHAT_DOMAIN:?CHAT_DOMAIN obrigatorio}
+
+    restart: unless-stopped
+
+    environment:
+      CHAT_DOMAIN: ${CHAT_DOMAIN:?CHAT_DOMAIN obrigatorio}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL obrigatorio}
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+
+    volumes:
+      # Certificados emitidos: preservar evita atingir o limite do Let's Encrypt.
+      - caddy_data:/data
+      - caddy_config:/config
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:

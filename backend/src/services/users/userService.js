@@ -283,6 +283,71 @@ function createUserService({
             );
 
 
+        return persistNewUser(
+            data,
+            {
+                isAdmin:
+                    false,
+            }
+        );
+    }
+
+
+    /*
+     * DEP-01.2 — Primeiro administrador de produção.
+     *
+     * Usado apenas pela operação de linha de comando
+     * (src/operations/createAdmin.js). Só funciona enquanto não houver
+     * nenhum administrador ativo; depois disso, novos administradores
+     * são gerenciados pelo painel.
+     */
+    async function createInitialAdmin(
+        input
+    ) {
+
+        const data =
+            validateCreateUserInput(
+                input
+            );
+
+
+        const users =
+            await userRepository
+                .findAll();
+
+
+        if (
+            users.some(
+                user =>
+                    user.is_admin === true &&
+                    user.status === "ACTIVE"
+            )
+        ) {
+
+            throw AppError.conflict(
+                "Já existe um administrador ativo. Use o painel de administração.",
+                "ADMIN_ALREADY_EXISTS"
+            );
+        }
+
+
+        return persistNewUser(
+            data,
+            {
+                isAdmin:
+                    true,
+            }
+        );
+    }
+
+
+    async function persistNewUser(
+        data,
+        {
+            isAdmin,
+        }
+    ) {
+
         const existing =
             await userRepository
                 .findByEmail(
@@ -327,7 +392,7 @@ function createUserService({
                             "ACTIVE",
 
                         is_admin:
-                            false,
+                            isAdmin,
                     });
 
 
@@ -559,6 +624,8 @@ function createUserService({
     return {
 
         createUser,
+
+        createInitialAdmin,
 
         listUsers,
 
