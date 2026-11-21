@@ -1,17 +1,19 @@
 
 import { useState } from "react";
 
-function getInitials(name) {
-    return name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase();
-}
+import { Avatar } from "../../../components/ui/Avatar";
 
-export function ContactList({ contacts = [] }) {
+/**
+ * Lista de contatos do dashboard.
+ *
+ * Selecionar um contato abre (ou reutiliza) a conversa
+ * privada correspondente (CA05.2 / CA06.1).
+ */
+export function ContactList({
+    contacts = [],
+    onSelect,
+    disabled = false,
+}) {
     const [search, setSearch] = useState("");
 
     const query = search.trim().toLocaleLowerCase("pt-BR");
@@ -77,26 +79,26 @@ export function ContactList({ contacts = [] }) {
                 ) : (
                     <ul className="space-y-1">
                         {filteredContacts.map((contact) => (
-                            <li
-                                key={contact.user_id}
-                                className="flex items-center gap-3 rounded-lg px-3 py-2"
-                            >
-                                <span
-                                    aria-hidden="true"
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy-700 text-xs font-semibold text-teal-300"
+                            <li key={contact.user_id}>
+                                <button
+                                    type="button"
+                                    onClick={() => onSelect?.(contact)}
+                                    disabled={disabled || !onSelect}
+                                    aria-label={`Conversar com ${contact.name}`}
+                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-navy-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500 disabled:cursor-default disabled:hover:bg-transparent"
                                 >
-                                    {getInitials(contact.name)}
-                                </span>
+                                    <Avatar name={contact.name} />
 
-                                <div className="min-w-0">
-                                    <p className="truncate text-sm font-medium text-slate-300">
-                                        {contact.name}
-                                    </p>
+                                    <span className="min-w-0">
+                                        <span className="block truncate text-sm font-medium text-slate-300">
+                                            {contact.name}
+                                        </span>
 
-                                    <p className="truncate text-xs text-slate-400">
-                                        {contact.email}
-                                    </p>
-                                </div>
+                                        <span className="block truncate text-xs text-slate-400">
+                                            {contact.email}
+                                        </span>
+                                    </span>
+                                </button>
                             </li>
                         ))}
                     </ul>

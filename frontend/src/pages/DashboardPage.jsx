@@ -1,8 +1,11 @@
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../features/auth/hooks/useAuth";
+import { ChatPanel } from "../features/chat/components/ChatPanel";
+import { ConversationList } from "../features/chat/components/ConversationList";
 import { ContactList } from "../features/dashboard/components/ContactList";
+import { conversationService } from "../services/api/conversationService";
 import { dashboardService } from "../services/api/dashboardService";
 
 export function DashboardPage() {
@@ -12,6 +15,10 @@ export function DashboardPage() {
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [reloadKey, setReloadKey] = useState(0);
+
+    const [activeConversation, setActiveConversation] = useState(null);
+    const [openingContactId, setOpeningContactId] = useState(null);
+    const [openError, setOpenError] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -53,6 +60,11 @@ export function DashboardPage() {
         setReloadKey((current) => current + 1);
     }
 
+    // Atualiza prévias e ordenação sem esconder a interface.
+    const refreshDashboard = useCallback(() => {
+        setReloadKey((current) => current + 1);
+    }, []);
+
     async function handleLogout() {
         try {
             await logout();
@@ -66,28 +78,90 @@ export function DashboardPage() {
         }
     }
 
-    const contacts = dashboard?.contacts ?? [];
-    const conversations = dashboard?.conversations ?? [];
+    const contacts = useMemo(
+        () => dashboard?.contacts ?? [],
+        [dashboard]
+    );
+
+    const conversations = useMemo(
+        () => dashboard?.conversations ?? [],
+        [dashboard]
+    );
+
+    // Usuários conhecidos, para identificar o autor das mensagens.
+    const usersById = useMemo(
+        () => new Map(contacts.map((contact) => [contact.user_id, contact])),
+        [contacts]
+    );
+
+    // Selecionar contato cria ou reutiliza a conversa privada (CA05.2 / CA06.1).
+    async function handleSelectContact(contact) {
+        setOpenError("");
+        setOpeningContactId(contact.user_id);
+
+        try {
+            const response = await conversationService.openPrivate(
+                contact.user_id
+            );
+
+            const conversationId = response?.conversation?._id;
+
+            if (!conversationId) {
+                throw new Error("INVALID_CONVERSATION_RESPONSE");
+            }
+
+            const existing = conversations.find(
+                (item) => item.conversation_id === conversationId
+            );
+
+            setActiveConversation(
+                existing ?? {
+                    conversation_id: conversationId,
+                    type: "PRIVATE",
+                    name: null,
+                    contact,
+                    last_message: null,
+                    last_message_at: null,
+                }
+            );
+
+            if (!existing) {
+                refreshDashboard();
+            }
+        } catch {
+            setOpenError(
+                `Não foi possível abrir a conversa com ${contact.name}.`
+            );
+        } finally {
+            setOpeningContactId(null);
+        }
+    }
 
     return (
         <div className="grid min-h-screen grid-cols-1 bg-navy-950 text-slate-300 md:grid-cols-[260px_minmax(0,1fr)]">
             <aside
                 aria-label="Contatos disponíveis"
-                className="min-w-0 border-b border-slate-400/10 md:border-b-0 md:border-r"
+                className={`min-w-0 border-b border-slate-400/10 md:border-b-0 md:border-r ${
+                    activeConversation ? "hidden md:block" : ""
+                }`}
             >
                 {status === "success" && (
-                    <ContactList contacts={contacts} />
+                    <ContactList
+                        contacts={contacts}
+                        onSelect={handleSelectContact}
+                        disabled={Boolean(openingContactId)}
+                    />
                 )}
             </aside>
 
-            <main className="min-w-0 px-5 py-6 md:px-8">
-                <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-400/10 pb-5">
+            <main className="flex min-w-0 flex-col px-4 py-5 md:px-6">
+                <header className="mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-slate-400/10 pb-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-300">
                             Dashboard
                         </h1>
 
-                        <p className="mt-2 text-sm text-slate-400">
+                        <p className="mt-1 text-sm text-slate-400">
                             Bem-vindo, {user?.name || "usuário"}.
                         </p>
                     </div>
@@ -125,46 +199,52 @@ export function DashboardPage() {
                 )}
 
                 {status === "success" && (
-                    <section aria-labelledby="conversations-title">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2
-                                id="conversations-title"
-                                className="text-lg font-semibold"
-                            >
-                                Conversas recentes
-                            </h2>
+                    <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+                        <section
+                            aria-labelledby="conversations-title"
+                            className={activeConversation ? "hidden lg:block" : ""}
+                        >
+                            <div className="mb-3 flex items-center justify-between">
+                                <h2
+                                    id="conversations-title"
+                                    className="text-lg font-semibold"
+                                >
+                                    Conversas recentes
+                                </h2>
 
-                            <span className="text-sm text-slate-400">
-                                {conversations.length}
-                            </span>
-                        </div>
+                                <span className="text-sm text-slate-400">
+                                    {conversations.length}
+                                </span>
+                            </div>
 
-                        {conversations.length === 0 ? (
-                            <p className="rounded-lg border border-slate-400/10 bg-navy-900 p-5 text-sm text-slate-400">
-                                Nenhuma conversa iniciada.
-                            </p>
+                            {openError && (
+                                <p role="alert" className="mb-3 text-sm text-rose-500">
+                                    {openError}
+                                </p>
+                            )}
+
+                            <ConversationList
+                                conversations={conversations}
+                                activeId={activeConversation?.conversation_id}
+                                onSelect={setActiveConversation}
+                            />
+                        </section>
+
+                        {activeConversation ? (
+                            <ChatPanel
+                                key={activeConversation.conversation_id}
+                                conversation={activeConversation}
+                                currentUser={user}
+                                usersById={usersById}
+                                onBack={() => setActiveConversation(null)}
+                                onMessageSent={refreshDashboard}
+                            />
                         ) : (
-                            <ul className="space-y-2">
-                                {conversations.map((conversation) => (
-                                    <li
-                                        key={conversation.conversation_id}
-                                        className="rounded-lg border border-slate-400/10 bg-navy-900 p-4"
-                                    >
-                                        <p className="font-semibold">
-                                            {conversation.type === "GROUP"
-                                                ? conversation.name
-                                                : conversation.contact?.name ?? "Contato indisponível"}
-                                        </p>
-
-                                        <p className="mt-1 truncate text-sm text-slate-400">
-                                            {conversation.last_message?.content ??
-                                                "Sem mensagens."}
-                                        </p>
-                                    </li>
-                                ))}
-                            </ul>
+                            <p className="hidden rounded-lg border border-dashed border-slate-400/15 p-8 text-center text-sm text-slate-400 lg:block">
+                                Selecione uma conversa ou um contato para começar.
+                            </p>
                         )}
-                    </section>
+                    </div>
                 )}
             </main>
         </div>
