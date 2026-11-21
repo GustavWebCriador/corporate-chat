@@ -34,7 +34,9 @@ export function ChatPanel({
         send,
         retry,
         reload,
-    } = useConversationMessages(conversationId, currentUser?.user_id);
+    } = useConversationMessages(conversationId, currentUser?.user_id, {
+        isGroup,
+    });
 
     const getAuthorName = useCallback(
         (senderId) => {

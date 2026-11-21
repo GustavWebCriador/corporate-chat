@@ -38,16 +38,18 @@ export function AuthProvider({ children }) {
      * Sessão expirada, revogada ou inválida (CA02.2 / CA02.3):
      * remove o acesso autenticado e informa o usuário.
      */
+    const expireSession = useCallback(() => {
+        clearSession();
+        setSessionMessage(SESSION_EXPIRED_MESSAGE);
+    }, [clearSession]);
+
     useEffect(() => {
-        setUnauthorizedHandler(() => {
-            clearSession();
-            setSessionMessage(SESSION_EXPIRED_MESSAGE);
-        });
+        setUnauthorizedHandler(expireSession);
 
         return () => {
             setUnauthorizedHandler(null);
         };
-    }, [clearSession]);
+    }, [expireSession]);
 
     /**
      * Realiza o login do usuário.
@@ -109,7 +111,8 @@ export function AuthProvider({ children }) {
         sessionMessage,
         login,
         logout,
-    }), [user, token, loading, sessionMessage, login, logout]);
+        expireSession,
+    }), [user, token, loading, sessionMessage, login, logout, expireSession]);
 
     return (
         <AuthContext.Provider value={value}>

@@ -8,6 +8,7 @@ import {
 } from "vitest";
 
 import {
+    act,
     cleanup,
     fireEvent,
     render,
@@ -21,6 +22,10 @@ import { DashboardPage } from "./DashboardPage";
 import { dashboardService } from "../services/api/dashboardService";
 import { conversationService } from "../services/api/conversationService";
 import { useAuth } from "../features/auth/hooks/useAuth";
+import {
+    CONNECTION_STATUS,
+    RealtimeContext,
+} from "../features/realtime/context/realtimeContext";
 
 vi.mock("../services/api/dashboardService", () => ({
     dashboardService: {
@@ -224,4 +229,47 @@ test("deve informar falha ao abrir conversa", async () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
         "Não foi possível abrir a conversa com Maria Oliveira."
     );
+});
+
+test("deve atualizar conversas e confirmar entrega ao receber mensagem em tempo real", async () => {
+    const handlers = new Set();
+    const realtime = {
+        status: CONNECTION_STATUS.CONNECTED,
+        isConnected: true,
+        readyCount: 1,
+        subscribe: vi.fn((event, handler) => {
+            if (event === "message:new") handlers.add(handler);
+            return () => handlers.delete(handler);
+        }),
+        emitWithAck: vi.fn().mockResolvedValue({}),
+    };
+
+    render(
+        <RealtimeContext.Provider value={realtime}>
+            <DashboardPage />
+        </RealtimeContext.Provider>
+    );
+
+    await screen.findByText("Maria Oliveira");
+    expect(dashboardService.getDashboard).toHaveBeenCalledTimes(1);
+
+    act(() => {
+        handlers.forEach((handler) => handler({
+            message: {
+                _id: "690000000000000000000099",
+                conversation_id: "conv-nova",
+                sender_id: "user-01",
+                content: "Olá!",
+            },
+        }));
+    });
+
+    expect(realtime.emitWithAck).toHaveBeenCalledWith("message:delivered", {
+        conversationId: "conv-nova",
+        messageId: "690000000000000000000099",
+    });
+
+    await waitFor(() => {
+        expect(dashboardService.getDashboard).toHaveBeenCalledTimes(2);
+    });
 });

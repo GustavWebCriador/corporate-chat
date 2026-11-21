@@ -125,3 +125,56 @@ export function formatMessageTimestamp(value, now = new Date()) {
 
     return `${day} ${time}`;
 }
+
+// ObjectIds do MongoDB (24 hexadecimais) crescem com o tempo de criação.
+function isAtOrBefore(messageId, checkpointId) {
+    return Boolean(checkpointId) && messageId <= checkpointId;
+}
+
+/**
+ * Aplica os checkpoints de entrega/leitura recebidos em tempo real
+ * às mensagens próprias (RF07: Entregue / Lida).
+ *
+ * `receipts` mapeia o usuário para { delivered, read } (ids de mensagem).
+ * Em grupos, informa quantos participantes receberam ou leram.
+ */
+export function applyReceipts(messages, receipts, { isGroup = false } = {}) {
+    const entries = Object.values(receipts ?? {});
+
+    if (entries.length === 0) {
+        return messages;
+    }
+
+    return messages.map((message) => {
+        if (!message.isOwn || !message.id) {
+            return message;
+        }
+
+        const readBy = entries.filter((entry) =>
+            isAtOrBefore(message.id, entry.read)
+        ).length;
+
+        const deliveredTo = entries.filter((entry) =>
+            isAtOrBefore(message.id, entry.read) ||
+            isAtOrBefore(message.id, entry.delivered)
+        ).length;
+
+        if (readBy > 0) {
+            return {
+                ...message,
+                status: MESSAGE_STATUS.READ,
+                statusDetail: isGroup ? `Lida por ${readBy}` : undefined,
+            };
+        }
+
+        if (deliveredTo > 0) {
+            return {
+                ...message,
+                status: MESSAGE_STATUS.DELIVERED,
+                statusDetail: isGroup ? `Entregue a ${deliveredTo}` : undefined,
+            };
+        }
+
+        return message;
+    });
+}

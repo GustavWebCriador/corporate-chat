@@ -14,7 +14,7 @@ const COLORS = {
     [MESSAGE_STATUS.FAILED]: "text-rose-500",
 };
 
-export function MessageStatus({ status }) {
+export function MessageStatus({ status, detail }) {
     const label = LABELS[status];
 
     if (!label) {
@@ -27,7 +27,7 @@ export function MessageStatus({ status }) {
             className={`inline-flex items-center gap-1 text-xs ${COLORS[status] ?? "text-slate-400"}`}
         >
             <span aria-hidden="true">{label.symbol}</span>
-            <span>{label.text}</span>
+            <span>{detail ?? label.text}</span>
         </span>
     );
 }

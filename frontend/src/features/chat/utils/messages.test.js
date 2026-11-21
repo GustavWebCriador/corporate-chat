@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 
 import {
     MESSAGE_STATUS,
+    applyReceipts,
     createClientMessageId,
     formatMessageTimestamp,
     fromServerMessage,
@@ -88,4 +89,24 @@ test("exibe só o horário para hoje e data completa nos demais dias", () => {
         .toBe("19/11/2026 09:05");
 
     expect(formatMessageTimestamp("invalida", now)).toBe("");
+});
+
+test("aplica Entregue e Lida às mensagens próprias pelos checkpoints", () => {
+    const own = (id) => ({ key: id, id, isOwn: true, senderId: ME, status: MESSAGE_STATUS.SENT });
+    const list = [own("690000000000000000000001"), own("690000000000000000000002"), own("690000000000000000000003")];
+
+    const result = applyReceipts(list, {
+        [OTHER]: {
+            delivered: "690000000000000000000003",
+            read: "690000000000000000000001",
+        },
+    });
+
+    expect(result.map((m) => m.status)).toEqual([
+        MESSAGE_STATUS.READ,
+        MESSAGE_STATUS.DELIVERED,
+        MESSAGE_STATUS.DELIVERED,
+    ]);
+
+    expect(applyReceipts(list, {})).toBe(list);
 });

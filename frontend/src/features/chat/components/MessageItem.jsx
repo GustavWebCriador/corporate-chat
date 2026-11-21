@@ -44,7 +44,7 @@ export function MessageItem({ message, authorName, onRetry }) {
 
                 {isOwn && (
                     <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <MessageStatus status={status} />
+                        <MessageStatus status={status} detail={message.statusDetail} />
 
                         {failed && (
                             <>

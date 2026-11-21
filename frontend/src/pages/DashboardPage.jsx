@@ -1,10 +1,11 @@
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { ChatPanel } from "../features/chat/components/ChatPanel";
 import { ConversationList } from "../features/chat/components/ConversationList";
 import { ContactList } from "../features/dashboard/components/ContactList";
+import { useRealtime } from "../features/realtime/hooks/useRealtime";
 import { conversationService } from "../services/api/conversationService";
 import { dashboardService } from "../services/api/dashboardService";
 
@@ -64,6 +65,86 @@ export function DashboardPage() {
     const refreshDashboard = useCallback(() => {
         setReloadKey((current) => current + 1);
     }, []);
+
+    // Tempo real (FE-06): mensagens novas atualizam a lista de conversas
+    // e confirmam a entrega mesmo com a conversa fechada.
+    const { subscribe, isConnected, readyCount, emitWithAck } = useRealtime();
+    const activeIdRef = useRef(null);
+    const deliveredRef = useRef(new Set());
+    const currentUserId = user?.user_id;
+
+    useEffect(() => {
+        activeIdRef.current = activeConversation?.conversation_id ?? null;
+    }, [activeConversation]);
+
+    const confirmDelivery = useCallback((conversationId, messageId) => {
+        if (!messageId || deliveredRef.current.has(messageId)) {
+            return;
+        }
+
+        deliveredRef.current.add(messageId);
+
+        emitWithAck("message:delivered", { conversationId, messageId })
+            .catch(() => {
+                deliveredRef.current.delete(messageId);
+            });
+    }, [emitWithAck]);
+
+    useEffect(() => {
+        let timer;
+
+        const unsubscribe = subscribe("message:new", (payload) => {
+            const message = payload?.message;
+
+            if (!message) return;
+
+            if (
+                message.sender_id !== currentUserId &&
+                message.conversation_id !== activeIdRef.current
+            ) {
+                confirmDelivery(message.conversation_id, message._id);
+            }
+
+            clearTimeout(timer);
+            timer = setTimeout(refreshDashboard, 300);
+        });
+
+        return () => {
+            unsubscribe();
+            clearTimeout(timer);
+        };
+    }, [subscribe, confirmDelivery, refreshDashboard, currentUserId]);
+
+    // Ao conectar, confirma a entrega das últimas mensagens recebidas
+    // enquanto o usuário estava offline (RF08).
+    useEffect(() => {
+        if (!isConnected) return;
+
+        (dashboard?.conversations ?? []).forEach((conversation) => {
+            const last = conversation.last_message;
+
+            if (
+                last?.message_id &&
+                last.sender_id !== currentUserId &&
+                conversation.conversation_id !== activeIdRef.current
+            ) {
+                confirmDelivery(conversation.conversation_id, last.message_id);
+            }
+        });
+    }, [dashboard, isConnected, confirmDelivery, currentUserId]);
+
+    // Após reconectar, recarrega a lista para incluir o que chegou offline.
+    const readyAtMountRef = useRef(readyCount);
+
+    useEffect(() => {
+        if (readyCount > Math.max(readyAtMountRef.current, 1)) {
+            readyAtMountRef.current = readyCount;
+            const timer = setTimeout(refreshDashboard, 0);
+            return () => clearTimeout(timer);
+        }
+
+        return undefined;
+    }, [readyCount, refreshDashboard]);
 
     async function handleLogout() {
         try {

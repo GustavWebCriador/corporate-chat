@@ -1,57 +1,102 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { conversationService } from "../../../services/api/conversationService";
+import { useRealtime } from "../../realtime/hooks/useRealtime";
 
 import {
     HISTORY_PAGE_SIZE,
     MESSAGE_MAX_LENGTH,
     MESSAGE_STATUS,
+    applyReceipts,
     createClientMessageId,
     fromServerMessage,
     mergeMessages,
 } from "../utils/messages";
 
+const SYNC_MAX_PAGES = 20;
+
+// Falhas de conexão: a mensagem é reenviada automaticamente.
+const RETRYABLE_REALTIME_CODES = new Set([
+    "REALTIME_UNAVAILABLE",
+    "REALTIME_TIMEOUT",
+    "INTERNAL_ERROR",
+]);
+
 function describeSendError(error) {
-    if (error?.status === 429) {
+    const status = error?.status;
+    const code = error?.code;
+
+    if (status === 429 || code === "RATE_LIMITED") {
         return "Muitas mensagens em sequência. Aguarde e tente novamente.";
     }
 
-    if (error?.status === 400 || error?.status === 413) {
-        return error.message || "Mensagem inválida.";
+    if (status === 403 || code === "USER_NOT_ACTIVE_MEMBER") {
+        return "Você não participa mais desta conversa.";
     }
 
-    if (error?.status === 403) {
-        return "Você não participa mais desta conversa.";
+    if (
+        status === 400 ||
+        status === 413 ||
+        code?.startsWith?.("MESSAGE_") ||
+        code === "VALIDATION_ERROR"
+    ) {
+        return error.message || "Mensagem inválida.";
     }
 
     return "Não foi possível enviar. Verifique sua conexão.";
 }
 
+function isRetryable(error, viaRealtime) {
+    if (viaRealtime) {
+        return RETRYABLE_REALTIME_CODES.has(error?.code);
+    }
+
+    return !error?.status || error.status >= 429;
+}
+
 /**
- * Estado das mensagens de uma conversa (FE-04).
+ * Estado das mensagens de uma conversa (FE-04 + FE-06).
  *
- * - RF11: carrega as 50 mensagens mais recentes e páginas anteriores por cursor.
- * - RF07: envio com estados Enviando → Enviada, ou Falha.
- * - RF08: reenvio com o mesmo clientMessageId (idempotente), inclusive
- *   automaticamente quando o navegador volta a ficar online.
+ * - RF11: 50 mensagens mais recentes e páginas anteriores por cursor;
+ * - RF07: Enviando → Enviada → Entregue → Lida, ou Falha;
+ * - RF12: com o socket conectado, envio, recebimento, entrega e leitura
+ *   acontecem em tempo real; sem socket, usa a API REST;
+ * - RF08/CA12.4: após reconectar, sincroniza mensagens perdidas e
+ *   reenvia falhas de conexão com o mesmo clientMessageId.
  */
-export function useConversationMessages(conversationId, currentUserId) {
+export function useConversationMessages(
+    conversationId,
+    currentUserId,
+    { isGroup = false } = {}
+) {
+    const realtime = useRealtime();
+
     const [messages, setMessages] = useState([]);
+    const [receipts, setReceipts] = useState({});
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [hasMore, setHasMore] = useState(false);
     const [loadingOlder, setLoadingOlder] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
+    const [visible, setVisible] = useState(
+        () => typeof document === "undefined" || !document.hidden
+    );
 
     const cursorRef = useRef(null);
     const loadingOlderRef = useRef(false);
     const conversationRef = useRef(conversationId);
     const lastReadRef = useRef(null);
     const messagesRef = useRef(messages);
+    const realtimeRef = useRef(realtime);
+    const readyAtLoadRef = useRef(null);
 
     useEffect(() => {
         messagesRef.current = messages;
     }, [messages]);
+
+    useEffect(() => {
+        realtimeRef.current = realtime;
+    }, [realtime]);
 
     // Carga inicial do histórico ao abrir a conversa.
     useEffect(() => {
@@ -60,6 +105,7 @@ export function useConversationMessages(conversationId, currentUserId) {
         conversationRef.current = conversationId;
         cursorRef.current = null;
         lastReadRef.current = null;
+        readyAtLoadRef.current = null;
 
         conversationService
             .getHistory(conversationId, { limit: HISTORY_PAGE_SIZE })
@@ -71,10 +117,11 @@ export function useConversationMessages(conversationId, currentUserId) {
                 }
 
                 cursorRef.current = page.nextCursor ?? null;
+                readyAtLoadRef.current = realtimeRef.current.readyCount;
                 setHasMore(Boolean(page.hasMore));
-                setMessages(
+                setMessages((current) =>
                     mergeMessages(
-                        [],
+                        current,
                         page.items.map((item) =>
                             fromServerMessage(item, currentUserId)
                         )
@@ -150,37 +197,43 @@ export function useConversationMessages(conversationId, currentUserId) {
 
     const deliver = useCallback(async (pending) => {
         const targetConversation = conversationRef.current;
+        const viaRealtime = realtimeRef.current.isConnected;
+        const payload = {
+            clientMessageId: pending.clientMessageId,
+            content: pending.content,
+        };
 
         try {
-            const result = await conversationService.sendMessage(
-                targetConversation,
-                {
-                    clientMessageId: pending.clientMessageId,
-                    content: pending.content,
-                }
-            );
+            const result = viaRealtime
+                ? await realtimeRef.current.emitWithAck("message:send", {
+                    conversationId: targetConversation,
+                    ...payload,
+                })
+                : await conversationService.sendMessage(
+                    targetConversation,
+                    payload
+                );
 
-            if (conversationRef.current !== targetConversation) {
-                return result;
+            if (conversationRef.current === targetConversation) {
+                setMessages((current) =>
+                    mergeMessages(current, [
+                        fromServerMessage(result.message, currentUserId),
+                    ])
+                );
             }
-
-            setMessages((current) =>
-                mergeMessages(current, [
-                    fromServerMessage(result.message, currentUserId),
-                ])
-            );
 
             return result;
         } catch (err) {
             if (conversationRef.current === targetConversation) {
                 setMessages((current) =>
                     current.map((item) =>
-                        item.clientMessageId === pending.clientMessageId
+                        item.clientMessageId === pending.clientMessageId &&
+                        !item.id
                             ? {
                                 ...item,
                                 status: MESSAGE_STATUS.FAILED,
                                 error: describeSendError(err),
-                                retryable: !err?.status || err.status >= 429,
+                                retryable: isRetryable(err, viaRealtime),
                             }
                             : item
                     )
@@ -229,7 +282,7 @@ export function useConversationMessages(conversationId, currentUserId) {
 
         setMessages((current) =>
             current.map((item) =>
-                item.clientMessageId === clientMessageId
+                item.clientMessageId === clientMessageId && !item.id
                     ? {
                         ...item,
                         status: MESSAGE_STATUS.SENDING,
@@ -242,26 +295,158 @@ export function useConversationMessages(conversationId, currentUserId) {
         return deliver(target);
     }, [deliver]);
 
-    // Reenvia automaticamente falhas de conexão quando a rede retorna.
-    useEffect(() => {
-        function handleOnline() {
-            messagesRef.current
-                .filter(
-                    (item) =>
-                        item.status === MESSAGE_STATUS.FAILED &&
-                        item.retryable
-                )
-                .forEach((item) => retry(item.clientMessageId));
-        }
-
-        window.addEventListener("online", handleOnline);
-
-        return () => {
-            window.removeEventListener("online", handleOnline);
-        };
+    const retryConnectionFailures = useCallback(() => {
+        messagesRef.current
+            .filter(
+                (item) =>
+                    item.status === MESSAGE_STATUS.FAILED &&
+                    item.retryable
+            )
+            .forEach((item) => retry(item.clientMessageId));
     }, [retry]);
 
-    // Registra leitura da mensagem mais recente recebida de outro participante.
+    // Sem socket: reenvia quando o navegador volta a ficar online.
+    useEffect(() => {
+        window.addEventListener("online", retryConnectionFailures);
+
+        return () => {
+            window.removeEventListener("online", retryConnectionFailures);
+        };
+    }, [retryConnectionFailures]);
+
+    // Mensagens novas em tempo real (CA06.3 / CA12.1).
+    const { subscribe } = realtime;
+
+    useEffect(() => {
+        const unsubscribeNew = subscribe("message:new", (payload) => {
+            const message = payload?.message;
+
+            if (message?.conversation_id !== conversationRef.current) {
+                return;
+            }
+
+            setMessages((current) =>
+                mergeMessages(current, [
+                    fromServerMessage(message, currentUserId),
+                ])
+            );
+        });
+
+        // Checkpoints de entrega e leitura dos outros participantes.
+        const handleCheckpoint = (payload) => {
+            const checkpoint = payload?.checkpoint;
+
+            if (
+                checkpoint?.conversation_id !== conversationRef.current ||
+                !checkpoint.user_id ||
+                checkpoint.user_id === currentUserId
+            ) {
+                return;
+            }
+
+            setReceipts((current) => ({
+                ...current,
+                [checkpoint.user_id]: {
+                    delivered: checkpoint.last_delivered_message_id ?? null,
+                    read: checkpoint.last_read_message_id ?? null,
+                },
+            }));
+        };
+
+        const unsubscribeDelivery = subscribe(
+            "message:delivery:update",
+            handleCheckpoint
+        );
+        const unsubscribeRead = subscribe(
+            "message:read:update",
+            handleCheckpoint
+        );
+
+        return () => {
+            unsubscribeNew();
+            unsubscribeDelivery();
+            unsubscribeRead();
+        };
+    }, [subscribe, currentUserId]);
+
+    // Após (re)conexão: busca mensagens perdidas e reenvia falhas (CA12.4).
+    const { readyCount, isConnected } = realtime;
+
+    useEffect(() => {
+        if (
+            status !== "ready" ||
+            !isConnected ||
+            readyAtLoadRef.current === null ||
+            readyCount <= readyAtLoadRef.current
+        ) {
+            return;
+        }
+
+        readyAtLoadRef.current = readyCount;
+
+        const targetConversation = conversationRef.current;
+
+        async function synchronize() {
+            let afterMessageId = [...messagesRef.current]
+                .reverse()
+                .find((item) => item.id)?.id;
+
+            for (let page = 0; page < SYNC_MAX_PAGES; page += 1) {
+                const data = await realtimeRef.current.emitWithAck(
+                    "realtime:sync",
+                    {
+                        conversationId: targetConversation,
+                        ...(afterMessageId ? { afterMessageId } : {}),
+                        limit: HISTORY_PAGE_SIZE,
+                    }
+                );
+
+                if (conversationRef.current !== targetConversation) {
+                    return;
+                }
+
+                setMessages((current) =>
+                    mergeMessages(
+                        current,
+                        (data?.items ?? []).map((item) =>
+                            fromServerMessage(item, currentUserId)
+                        )
+                    )
+                );
+
+                if (!data?.hasMore || !data.nextAfterMessageId) {
+                    return;
+                }
+
+                afterMessageId = data.nextAfterMessageId;
+            }
+        }
+
+        synchronize()
+            .catch(() => {
+                // O histórico continua disponível pela API REST.
+            })
+            .finally(() => {
+                if (conversationRef.current === targetConversation) {
+                    retryConnectionFailures();
+                }
+            });
+    }, [readyCount, isConnected, status, currentUserId, retryConnectionFailures]);
+
+    // Acompanha se a aba está visível para registrar leitura somente nela.
+    useEffect(() => {
+        function handleVisibility() {
+            setVisible(!document.hidden);
+        }
+
+        document.addEventListener("visibilitychange", handleVisibility);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibility);
+        };
+    }, []);
+
+    // Registra entrega/leitura da mensagem mais recente recebida.
     useEffect(() => {
         if (status !== "ready") return;
 
@@ -269,22 +454,44 @@ export function useConversationMessages(conversationId, currentUserId) {
             .reverse()
             .find((item) => item.id && !item.isOwn);
 
-        if (!latestReceived || lastReadRef.current === latestReceived.id) {
+        if (!latestReceived) {
             return;
         }
 
-        lastReadRef.current = latestReceived.id;
+        const readKey = `${latestReceived.id}:${visible ? "read" : "delivered"}`;
 
-        conversationService
-            .markRead(conversationId, latestReceived.id)
-            .catch(() => {
-                // A leitura é um checkpoint auxiliar; falhas não bloqueiam o chat.
-                lastReadRef.current = null;
-            });
-    }, [messages, status, conversationId]);
+        if (lastReadRef.current === readKey) {
+            return;
+        }
+
+        lastReadRef.current = readKey;
+
+        const event = visible ? "message:read" : "message:delivered";
+        const payload = {
+            conversationId,
+            messageId: latestReceived.id,
+        };
+
+        const request = isConnected
+            ? realtimeRef.current.emitWithAck(event, payload)
+            : visible
+                ? conversationService.markRead(conversationId, latestReceived.id)
+                : Promise.resolve();
+
+        request.catch(() => {
+            // Checkpoint auxiliar; falhas não bloqueiam o chat.
+            lastReadRef.current = null;
+        });
+    }, [messages, status, conversationId, visible, isConnected]);
+
+    // Estados Entregue/Lida das mensagens próprias.
+    const displayedMessages = useMemo(
+        () => applyReceipts(messages, receipts, { isGroup }),
+        [messages, receipts, isGroup]
+    );
 
     return {
-        messages,
+        messages: displayedMessages,
         status,
         error,
         hasMore,

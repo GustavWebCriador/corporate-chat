@@ -1,6 +1,8 @@
 
 import { Outlet } from "react-router-dom";
 
+import { ConnectionStatus } from "../features/realtime/components/ConnectionStatus";
+
 export function AuthenticatedLayout() {
     return (
         <div className="grid min-h-screen grid-cols-[56px_minmax(0,1fr)] bg-navy-950 text-slate-300">
@@ -17,6 +19,7 @@ export function AuthenticatedLayout() {
             </aside>
 
             <div className="min-w-0">
+                <ConnectionStatus />
                 <Outlet />
             </div>
         </div>
