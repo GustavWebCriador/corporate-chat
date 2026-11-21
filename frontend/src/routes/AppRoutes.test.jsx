@@ -160,3 +160,47 @@ test("deve permitir acesso ao dashboard autenticado", () => {
         screen.getByTestId("current-route")
     ).toHaveTextContent("/dashboard");
 });
+
+test("deve levar usuário autenticado do login para o dashboard", async () => {
+    useAuth.mockReturnValue({
+        user: { name: "Usuário Teste" },
+        token: "jwt-simulado",
+        loading: false,
+        isAuthenticated: true,
+        login: vi.fn(),
+        logout: vi.fn(),
+    });
+
+    renderRoutes("/login");
+
+    await waitFor(() => {
+        expect(
+            screen.getByTestId("current-route")
+        ).toHaveTextContent("/dashboard");
+    });
+
+    expect(
+        screen.queryByText("Autenticação realizada!")
+    ).not.toBeInTheDocument();
+});
+
+test("deve informar no login que a sessão foi encerrada (CA02.3)", () => {
+    useAuth.mockReturnValue({
+        user: null,
+        token: null,
+        loading: false,
+        isAuthenticated: false,
+        sessionMessage:
+            "Sua sessão foi encerrada por segurança. Entre novamente.",
+        login: vi.fn(),
+        logout: vi.fn(),
+    });
+
+    renderRoutes("/login");
+
+    expect(
+        screen.getByText(
+            "Sua sessão foi encerrada por segurança. Entre novamente."
+        )
+    ).toHaveAttribute("role", "status");
+});

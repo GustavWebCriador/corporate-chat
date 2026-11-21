@@ -1,10 +1,16 @@
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { authService } from "../../../services/api/authService";
-import { setAuthToken } from "../../../services/api/httpClient";
+import {
+    setAuthToken,
+    setUnauthorizedHandler,
+} from "../../../services/api/httpClient";
 
 import { AuthContext } from "./authContext";
+
+const SESSION_EXPIRED_MESSAGE =
+    "Sua sessão foi encerrada por segurança. Entre novamente.";
 
 export function AuthProvider({ children }) {
     // Dados do usuário autenticado.
@@ -15,6 +21,33 @@ export function AuthProvider({ children }) {
 
     // Estado das operações de autenticação.
     const [loading, setLoading] = useState(false);
+
+    // Aviso exibido no login após encerramento forçado da sessão (RF02).
+    const [sessionMessage, setSessionMessage] = useState("");
+
+    /**
+     * Remove as credenciais locais.
+     */
+    const clearSession = useCallback(() => {
+        setAuthToken(null);
+        setToken(null);
+        setUser(null);
+    }, []);
+
+    /**
+     * Sessão expirada, revogada ou inválida (CA02.2 / CA02.3):
+     * remove o acesso autenticado e informa o usuário.
+     */
+    useEffect(() => {
+        setUnauthorizedHandler(() => {
+            clearSession();
+            setSessionMessage(SESSION_EXPIRED_MESSAGE);
+        });
+
+        return () => {
+            setUnauthorizedHandler(null);
+        };
+    }, [clearSession]);
 
     /**
      * Realiza o login do usuário.
@@ -40,6 +73,7 @@ export function AuthProvider({ children }) {
             // Atualiza a sessão React.
             setToken(response.token);
             setUser(response.user);
+            setSessionMessage("");
 
             return response.user;
 
@@ -59,12 +93,10 @@ export function AuthProvider({ children }) {
 
         } finally {
             // Remove as credenciais locais.
-            setAuthToken(null);
-            setToken(null);
-            setUser(null);
+            clearSession();
             setLoading(false);
         }
-    }, []);
+    }, [clearSession]);
 
     /**
      * Dados disponibilizados pelo contexto.
@@ -74,9 +106,10 @@ export function AuthProvider({ children }) {
         token,
         loading,
         isAuthenticated: Boolean(user && token),
+        sessionMessage,
         login,
         logout,
-    }), [user, token, loading, login, logout]);
+    }), [user, token, loading, sessionMessage, login, logout]);
 
     return (
         <AuthContext.Provider value={value}>

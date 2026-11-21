@@ -10,6 +10,7 @@ import {
 } from "vitest";
 
 import {
+    act,
     cleanup,
     fireEvent,
     render,
@@ -23,7 +24,10 @@ import { AuthProvider } from "./AuthProvider";
 import { useAuth } from "../hooks/useAuth";
 
 import { authService } from "../../../services/api/authService";
-import { setAuthToken } from "../../../services/api/httpClient";
+import {
+    setAuthToken,
+    setUnauthorizedHandler,
+} from "../../../services/api/httpClient";
 
 /**
  * Simula o serviço de autenticação.
@@ -43,6 +47,7 @@ vi.mock("../../../services/api/authService", () => ({
  */
 vi.mock("../../../services/api/httpClient", () => ({
     setAuthToken: vi.fn(),
+    setUnauthorizedHandler: vi.fn(),
 }));
 
 /**
@@ -55,6 +60,7 @@ function TestConsumer() {
         login,
         logout,
         isAuthenticated,
+        sessionMessage,
     } = useAuth();
 
     const [error, setError] = useState("");
@@ -89,6 +95,10 @@ function TestConsumer() {
 
             <p data-testid="user-name">
                 {user?.name || "Sem usuário"}
+            </p>
+
+            <p data-testid="session-message">
+                {sessionMessage}
             </p>
 
             {error && (
@@ -264,4 +274,116 @@ test("deve limpar a sessão após logout", async () => {
     expect(
         screen.getByTestId("user-name")
     ).toHaveTextContent("Sem usuário");
+});
+
+/**
+ * TESTE 5 — Sessão expirada ou revogada (CA02.2 / CA02.3).
+ */
+test("deve encerrar a sessão e avisar o usuário ao receber 401", async () => {
+    render(
+        <AuthProvider>
+            <TestConsumer />
+        </AuthProvider>
+    );
+
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Entrar",
+        })
+    );
+
+    await waitFor(() => {
+        expect(
+            screen.getByTestId("auth-status")
+        ).toHaveTextContent("Autenticado");
+    });
+
+    const handler =
+        setUnauthorizedHandler.mock.calls.at(-1)[0];
+
+    act(() => {
+        handler({ status: 401, code: "TOKEN_EXPIRED" });
+    });
+
+    expect(
+        screen.getByTestId("auth-status")
+    ).toHaveTextContent("Não autenticado");
+
+    expect(
+        screen.getByTestId("session-message")
+    ).toHaveTextContent(
+        "Sua sessão foi encerrada por segurança. Entre novamente."
+    );
+
+    expect(setAuthToken).toHaveBeenLastCalledWith(null);
+});
+
+/**
+ * TESTE 6 — Novo login remove o aviso de sessão encerrada.
+ */
+test("deve limpar o aviso de sessão após novo login", async () => {
+    render(
+        <AuthProvider>
+            <TestConsumer />
+        </AuthProvider>
+    );
+
+    act(() => {
+        setUnauthorizedHandler.mock.calls.at(-1)[0]({ status: 401 });
+    });
+
+    expect(
+        screen.getByTestId("session-message")
+    ).not.toBeEmptyDOMElement();
+
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Entrar",
+        })
+    );
+
+    await waitFor(() => {
+        expect(
+            screen.getByTestId("session-message")
+        ).toBeEmptyDOMElement();
+    });
+});
+
+/**
+ * TESTE 7 — Logout voluntário não exibe aviso de segurança.
+ */
+test("não deve exibir aviso de sessão encerrada no logout voluntário", async () => {
+    render(
+        <AuthProvider>
+            <TestConsumer />
+        </AuthProvider>
+    );
+
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Entrar",
+        })
+    );
+
+    await waitFor(() => {
+        expect(
+            screen.getByTestId("auth-status")
+        ).toHaveTextContent("Autenticado");
+    });
+
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Sair",
+        })
+    );
+
+    await waitFor(() => {
+        expect(
+            screen.getByTestId("auth-status")
+        ).toHaveTextContent("Não autenticado");
+    });
+
+    expect(
+        screen.getByTestId("session-message")
+    ).toBeEmptyDOMElement();
 });
