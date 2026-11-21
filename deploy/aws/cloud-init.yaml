@@ -1,0 +1,25 @@
+#cloud-config
+# Corporate Chat — DEP-01.1 | "User data" da instância EC2 (Ubuntu Server 24.04 LTS)
+#
+# Cole este arquivo inteiro em: EC2 > Launch instance > Advanced details > User data.
+# Ele baixa o repositório público do projeto e executa deploy/aws/bootstrap-servidor.sh.
+# Não coloque senhas, chaves ou segredos aqui: o user data fica visível no console.
+#
+# Se o repositório for privado, deixe REPO_URL vazio e copie o bootstrap manualmente
+# (ver docs/deploy/DEP-01-1-CONTA-E-SERVIDOR.md, seção 7).
+
+write_files:
+  - path: /etc/corporate-chat/bootstrap.env
+    permissions: "0644"
+    content: |
+      REPO_URL=https://github.com/GustavWebCriador/corporate-chat.git
+      REPO_BRANCH=main
+      APP_DIR=/opt/corporate-chat
+      APP_USER=ubuntu
+
+runcmd:
+  - [bash, -c, "set -a; . /etc/corporate-chat/bootstrap.env; set +a; command -v git >/dev/null || { apt-get -o DPkg::Lock::Timeout=600 update -y && apt-get -o DPkg::Lock::Timeout=600 install -y git; }"]
+  - [bash, -c, "set -a; . /etc/corporate-chat/bootstrap.env; set +a; if [ -n \"$REPO_URL\" ] && [ ! -d \"$APP_DIR/.git\" ]; then git clone --branch \"$REPO_BRANCH\" \"$REPO_URL\" \"$APP_DIR\"; fi"]
+  - [bash, -c, "set -a; . /etc/corporate-chat/bootstrap.env; set +a; if [ -f \"$APP_DIR/deploy/aws/bootstrap-servidor.sh\" ]; then bash \"$APP_DIR/deploy/aws/bootstrap-servidor.sh\"; chown -R \"$APP_USER:$APP_USER\" \"$APP_DIR\"; else echo 'bootstrap-servidor.sh nao encontrado' >&2; exit 1; fi"]
+
+final_message: "Corporate Chat: preparação concluída em $UPTIME s. Veja /var/log/cloud-init-output.log"

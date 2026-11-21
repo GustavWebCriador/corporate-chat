@@ -1,0 +1,5 @@
+# Scripts executados no servidor Linux (DEP-01) precisam de quebra de linha LF.
+*.sh text eol=lf
+Caddyfile text eol=lf
+*.Dockerfile text eol=lf
+Dockerfile text eol=lf
