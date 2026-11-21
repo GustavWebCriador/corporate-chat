@@ -29,6 +29,31 @@ A documentação técnica da API do Corporate Chat está disponível nos seguint
 - [Mensagens, entrega e leitura](docs/api-docs/MESSAGES.md)
 - [Comunicação em tempo real](docs/api-docs/REALTIME.md)
 
+## Frontend
+
+A interface web (React) consome a API REST e o Socket.IO do backend:
+
+- [Instalação, execução e testes do frontend](frontend/README.md)
+- [Notas da versão do frontend](docs/releases/FE-10-NOTAS-DA-VERSAO.md)
+- [Relatório de homologação (requisitos × evidências)](docs/releases/FE-10-RELATORIO-DE-HOMOLOGACAO.md)
+- [Roteiro de demonstração](docs/releases/FE-10-ROTEIRO-DEMONSTRACAO.md)
+- [Integração frontend × API](docs/api-docs/FRONTEND_INTEGRATION.md)
+
+Execução local do sistema completo (bancos, backend e frontend):
+
+```bash
+# backend (terminal 1)
+cd backend
+npm run db:migrate
+npm run seed:dev
+npm run dev
+
+# frontend (terminal 2)
+cd frontend
+npm ci
+npm run dev    # http://localhost:5173
+```
+
 ## Governança e contribuição
 
 A organização do desenvolvimento, revisão e integração do projeto está documentada em:
@@ -55,7 +80,12 @@ A organização do desenvolvimento, revisão e integração do projeto está doc
 
 ### Frontend
 
-- React
+- React 19 e React Router
+- Vite
+- Tailwind CSS
+- Axios
+- socket.io-client
+- Vitest, Testing Library e axe-core
 
 ### Comunicação em tempo real
 

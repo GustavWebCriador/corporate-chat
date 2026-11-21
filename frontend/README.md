@@ -47,7 +47,10 @@ Execução (no diretório frontend):
     VITE_BACKEND_URL=http://localhost:3000     INTEGRATION_PASSWORD=<valor de DEV_SEED_PASSWORD do backend>     npm run test:integration
 
 Os testes criam dados com identificadores únicos por execução, sem
-alterar os registros do seed. No CI, o workflow
+alterar os registros do seed. Cada execução envia 2 solicitações de
+cadastro públicas; o backend aceita 5 por hora por IP, então execuções
+seguidas podem receber "Muitas solicitações" — aguarde ou reinicie o
+backend local (o contador fica em memória). No CI, o workflow
 .github/workflows/integration-ci.yml cria os bancos do zero e executa
 a mesma suíte a cada Pull Request.
 
