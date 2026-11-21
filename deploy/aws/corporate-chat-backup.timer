@@ -1,0 +1,11 @@
+# Corporate Chat — DEP-01.3 | Agenda o backup diário às 06:30 UTC (03:30 em Brasília)
+[Unit]
+Description=Corporate Chat - agenda do backup diario
+
+[Timer]
+OnCalendar=*-*-* 06:30:00 UTC
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

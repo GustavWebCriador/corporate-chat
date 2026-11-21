@@ -54,6 +54,13 @@ npm ci
 npm run dev    # http://localhost:5173
 ```
 
+## Implantação na AWS
+
+Guia completo para publicar o sistema na AWS usando os créditos do plano Free, sem mensalidade obrigatória: conta e servidor, publicação com HTTPS, segurança, backup e recuperação.
+
+- [DEP-01 — Implantação AWS](docs/deploy/README.md)
+- [Runbook operacional (BE-18)](docs/operations/RUNBOOK-OPERACIONAL.md)
+
 ## Governança e contribuição
 
 A organização do desenvolvimento, revisão e integração do projeto está documentada em:
