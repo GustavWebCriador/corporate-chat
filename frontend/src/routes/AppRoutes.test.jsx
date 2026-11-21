@@ -29,6 +29,13 @@ vi.mock("../features/auth/hooks/useAuth", () => ({
     useAuth: vi.fn(),
 }));
 
+vi.mock("../services/api/adminService", () => ({
+    adminService: {
+        listRequests: vi.fn().mockResolvedValue({ requests: [], pagination: { total: 0 } }),
+        listUsers: vi.fn().mockResolvedValue({ users: [] }),
+    },
+}));
+
 vi.mock("../services/api/dashboardService", () => ({
     dashboardService: {
         getDashboard: vi.fn(),
@@ -203,4 +210,52 @@ test("deve informar no login que a sessão foi encerrada (CA02.3)", () => {
             "Sua sessão foi encerrada por segurança. Entre novamente."
         )
     ).toHaveAttribute("role", "status");
+});
+
+test("deve bloquear a administração para usuário comum (CA03.4)", async () => {
+    useAuth.mockReturnValue({
+        user: { user_id: "u-1", name: "Usuário Comum", is_admin: false },
+        token: "jwt-simulado",
+        loading: false,
+        isAuthenticated: true,
+        login: vi.fn(),
+        logout: vi.fn(),
+    });
+
+    renderRoutes("/admin");
+
+    await waitFor(() => {
+        expect(
+            screen.getByTestId("current-route")
+        ).toHaveTextContent("/dashboard");
+    });
+
+    expect(
+        screen.queryByRole("heading", { name: "Administração" })
+    ).not.toBeInTheDocument();
+
+    expect(
+        screen.queryByRole("link", { name: "Administração" })
+    ).not.toBeInTheDocument();
+});
+
+test("deve permitir a administração para administrador", async () => {
+    useAuth.mockReturnValue({
+        user: { user_id: "adm", name: "Gestora", is_admin: true },
+        token: "jwt-simulado",
+        loading: false,
+        isAuthenticated: true,
+        login: vi.fn(),
+        logout: vi.fn(),
+    });
+
+    renderRoutes("/admin");
+
+    expect(
+        await screen.findByRole("heading", { name: "Administração" })
+    ).toBeInTheDocument();
+
+    expect(
+        screen.getByRole("tab", { name: "Solicitações de acesso" })
+    ).toHaveAttribute("aria-selected", "true");
 });

@@ -11,9 +11,11 @@ import { AuthenticatedLayout } from "../layouts/AuthenticatedLayout";
 import { LoginPage } from "../pages/LoginPage";
 import { RegistrationRequestPage } from "../pages/RegistrationRequestPage";
 import { DashboardPage } from "../pages/DashboardPage";
+import { AdminPage } from "../pages/AdminPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 
 import { ProtectedRoute } from "./ProtectedRoute";
+import { AdminRoute } from "./AdminRoute";
 
 export function AppRoutes() {
     return (
@@ -46,6 +48,13 @@ export function AppRoutes() {
                         path="/dashboard"
                         element={<DashboardPage />}
                     />
+
+                    <Route element={<AdminRoute />}>
+                        <Route
+                            path="/admin"
+                            element={<AdminPage />}
+                        />
+                    </Route>
                 </Route>
             </Route>
         </Routes>

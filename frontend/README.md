@@ -49,6 +49,7 @@ do projeto.
 | FE-04 | Conversas privadas e mensagens |
 | FE-05 | Gerenciamento de grupos |
 | FE-06 | Comunicação em tempo real (Socket.IO) |
+| FE-08 | Interfaces administrativas |
 
 ### FE-04 — Conversas privadas e mensagens
 
@@ -105,3 +106,17 @@ tempo real.
   criador não pode sair nesta versão (regra do backend).
 - Erros do backend (limites, reentrada não suportada etc.) são
   exibidos com mensagens em português.
+
+### FE-08 — Interfaces administrativas
+
+- Rota `/admin`, visível e acessível somente para administradores
+  (`is_admin`); usuário comum é levado ao dashboard. O backend também
+  recusa as rotas administrativas (403).
+- **Solicitações de acesso:** filtro por situação (pendentes,
+  aprovadas, rejeitadas, todas) e paginação de 20 em 20. Aprovar exige
+  senha inicial (mesma política do backend); rejeitar exige motivo
+  (até 500 caracteres).
+- **Usuários:** listagem com busca, situação e perfil; cadastro de
+  usuário; ativar/desativar com confirmação; redefinição de senha pelo
+  administrador.
+- O administrador não pode desativar a própria conta pela interface.

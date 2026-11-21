@@ -1,5 +1,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { ChatPanel } from "../features/chat/components/ChatPanel";
@@ -275,14 +276,25 @@ export function DashboardPage() {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={authLoading}
-                        className="rounded-lg border border-slate-400/20 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-navy-800 disabled:opacity-50"
-                    >
-                        {authLoading ? "Saindo..." : "Sair"}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                        {user?.is_admin && (
+                            <Link
+                                to="/admin"
+                                className="rounded-lg border border-violet-500/40 px-4 py-2 text-sm text-violet-300 transition-colors hover:bg-navy-800"
+                            >
+                                Administração
+                            </Link>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            disabled={authLoading}
+                            className="rounded-lg border border-slate-400/20 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-navy-800 disabled:opacity-50"
+                        >
+                            {authLoading ? "Saindo..." : "Sair"}
+                        </button>
+                    </div>
                 </header>
 
                 {status === "loading" && (
