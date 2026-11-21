@@ -20,6 +20,8 @@ A implementação foi orientada pelos documentos:
 - Especificação de Requisitos de Software — Corporate Chat v1.4;
 - Modelo de Dados e Arquitetura de Persistência — Corporate Chat v1.3.
 
+As alterações implementadas depois da v1.3 (e-mail com 150 caracteres, sessões persistidas em `auth_sessions` e regras adicionais das solicitações de cadastro) estão descritas em [ADENDO-MODELO-DADOS-v1.3.md](ADENDO-MODELO-DADOS-v1.3.md).
+
 A rastreabilidade entre requisitos, implementação e testes está registrada em `docs/persistence/TRACEABILITY.md`.
 
 ---
