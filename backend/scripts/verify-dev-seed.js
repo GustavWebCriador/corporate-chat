@@ -257,30 +257,53 @@ async function verify() {
         );
 
 
-        const messageCount =
-            await Message
-                .countDocuments({
 
-                    conversation_id: {
-                        $in:
-                            conversationIds,
-                    },
-                });
+        /*
+         * Verifica as cinco mensagens originais
+         * da massa de desenvolvimento PER-06.
+         *
+         * Mensagens adicionais criadas durante
+         * o uso da aplicação são permitidas.
+         */
+        const expectedSeedMessages = [
+            ["private1", conversationIds[0]],
+            ["private2", conversationIds[0]],
+            ["group1", conversationIds[1]],
+            ["group2", conversationIds[1]],
+            ["group3", conversationIds[1]],
+        ];
 
+        const seedMessageCount = await Message.countDocuments({
+            $or: expectedSeedMessages.map(
+                ([messageKey, conversationId]) => ({
+                    _id: new mongoose.Types.ObjectId(
+                        mongoIds.messages[messageKey]
+                    ),
+                    conversation_id: conversationId,
+                })
+            ),
+        });
 
-        if (
-            messageCount !== 5
-        ) {
-
+        if (seedMessageCount !== expectedSeedMessages.length) {
             throw new Error(
-                `Quantidade de mensagens inválida: ${messageCount}`
+                "Mensagens originais do seed incompletas ou em conversas incorretas."
             );
         }
 
+        const totalMessageCount = await Message.countDocuments({
+            conversation_id: {
+                $in: conversationIds,
+            },
+        });
 
         console.log(
-            "[MONGODB] Messages: 5/5 OK"
+            `[MONGODB] Seed messages: ${seedMessageCount}/${expectedSeedMessages.length} OK`
         );
+
+        console.log(
+            `[MONGODB] Total messages in DEV conversations: ${totalMessageCount}`
+        );
+
 
 
         /*

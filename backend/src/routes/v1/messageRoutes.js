@@ -66,6 +66,10 @@ function createMessageRoutes({
         "/:conversationId/delivery",
         controller.markDelivered
     );
+    router.get(
+        "/:conversationId/checkpoints",
+        controller.listCheckpoints
+    );
 
 
     /*

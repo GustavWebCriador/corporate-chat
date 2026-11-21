@@ -3,6 +3,7 @@ import {
     afterEach,
     expect,
     test,
+    vi,
 } from "vitest";
 
 import {
@@ -95,4 +96,37 @@ test("deve informar quando a pesquisa não encontra resultados", () => {
     expect(
         screen.getByRole("status")
     ).toHaveTextContent("Nenhum contato encontrado.");
+});
+
+
+test("deve informar qual contato foi selecionado", () => {
+    const onSelectContact = vi.fn();
+
+    render(
+        <ContactList
+            contacts={contacts}
+            onSelectContact={onSelectContact}
+        />
+    );
+
+    fireEvent.click(
+        screen.getByRole("button", {
+            name: "Abrir conversa com Maria Oliveira",
+        })
+    );
+
+    expect(onSelectContact).toHaveBeenCalledTimes(1);
+    expect(onSelectContact).toHaveBeenCalledWith(
+        contacts[0]
+    );
+});
+
+test("deve impedir a seleção sem uma ação configurada", () => {
+    render(<ContactList contacts={contacts} />);
+
+    expect(
+        screen.getByRole("button", {
+            name: "Abrir conversa com Maria Oliveira",
+        })
+    ).toBeDisabled();
 });

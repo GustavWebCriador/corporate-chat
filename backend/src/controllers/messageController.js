@@ -153,12 +153,27 @@ function createMessageController({
             );
         }
     }
+    async function listCheckpoints(req, res, next) {
+        try {
+            const result = await messageService.listCheckpoints({
+                conversationId: req.params.conversationId,
+                userId: req.user.user_id,
+            });
+
+            return res.status(200).json({
+                data: result,
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
 
 
     return {
         send,
         markDelivered,
         markRead,
+        listCheckpoints,
     };
 }
 
