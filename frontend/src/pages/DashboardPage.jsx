@@ -5,6 +5,7 @@ import { useAuth } from "../features/auth/hooks/useAuth";
 import { ChatPanel } from "../features/chat/components/ChatPanel";
 import { ConversationList } from "../features/chat/components/ConversationList";
 import { ContactList } from "../features/dashboard/components/ContactList";
+import { CreateGroupDialog } from "../features/groups/components/CreateGroupDialog";
 import { useRealtime } from "../features/realtime/hooks/useRealtime";
 import { conversationService } from "../services/api/conversationService";
 import { dashboardService } from "../services/api/dashboardService";
@@ -20,6 +21,7 @@ export function DashboardPage() {
     const [activeConversation, setActiveConversation] = useState(null);
     const [openingContactId, setOpeningContactId] = useState(null);
     const [openError, setOpenError] = useState("");
+    const [creatingGroup, setCreatingGroup] = useState(false);
 
     useEffect(() => {
         let active = true;
@@ -218,6 +220,32 @@ export function DashboardPage() {
         }
     }
 
+    // Mantém os dados da conversa aberta atualizados com o dashboard.
+    const activeView = activeConversation
+        ? conversations.find(
+            (item) => item.conversation_id === activeConversation.conversation_id
+        ) ?? activeConversation
+        : null;
+
+    // Grupo criado aparece na lista e já é aberto (CA09.4).
+    function handleGroupCreated(group) {
+        setCreatingGroup(false);
+        setActiveConversation({
+            conversation_id: group._id,
+            type: "GROUP",
+            name: group.name,
+            contact: null,
+            last_message: null,
+            last_message_at: null,
+        });
+        refreshDashboard();
+    }
+
+    function handleLeftGroup() {
+        setActiveConversation(null);
+        refreshDashboard();
+    }
+
     return (
         <div className="grid min-h-screen grid-cols-1 bg-navy-950 text-slate-300 md:grid-cols-[260px_minmax(0,1fr)]">
             <aside
@@ -293,9 +321,20 @@ export function DashboardPage() {
                                     Conversas recentes
                                 </h2>
 
-                                <span className="text-sm text-slate-400">
-                                    {conversations.length}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-sm text-slate-400">
+                                        {conversations.length}
+                                    </span>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setCreatingGroup(true)}
+                                        disabled={contacts.length === 0}
+                                        className="rounded-lg bg-teal-500 px-3 py-1.5 text-xs font-semibold text-navy-950 disabled:opacity-40"
+                                    >
+                                        + Novo grupo
+                                    </button>
+                                </div>
                             </div>
 
                             {openError && (
@@ -311,14 +350,16 @@ export function DashboardPage() {
                             />
                         </section>
 
-                        {activeConversation ? (
+                        {activeView ? (
                             <ChatPanel
-                                key={activeConversation.conversation_id}
-                                conversation={activeConversation}
+                                key={activeView.conversation_id}
+                                conversation={activeView}
                                 currentUser={user}
                                 usersById={usersById}
                                 onBack={() => setActiveConversation(null)}
                                 onMessageSent={refreshDashboard}
+                                onGroupChanged={refreshDashboard}
+                                onLeftGroup={handleLeftGroup}
                             />
                         ) : (
                             <p className="hidden rounded-lg border border-dashed border-slate-400/15 p-8 text-center text-sm text-slate-400 lg:block">
@@ -328,6 +369,14 @@ export function DashboardPage() {
                     </div>
                 )}
             </main>
+
+            {creatingGroup && (
+                <CreateGroupDialog
+                    contacts={contacts}
+                    onClose={() => setCreatingGroup(false)}
+                    onCreated={handleGroupCreated}
+                />
+            )}
         </div>
     );
 }

@@ -47,6 +47,7 @@ do projeto.
 | FE-02 | Login, logout, rota protegida e solicitação de cadastro |
 | FE-03 | Dashboard com contatos e conversas recentes |
 | FE-04 | Conversas privadas e mensagens |
+| FE-05 | Gerenciamento de grupos |
 | FE-06 | Comunicação em tempo real (Socket.IO) |
 
 ### FE-04 — Conversas privadas e mensagens
@@ -90,3 +91,17 @@ Limitação: o backend não informa os checkpoints dos outros
 participantes ao abrir a conversa; por isso, mensagens antigas aparecem
 como "Enviada" e Entregue/Lida são atualizados a partir dos eventos em
 tempo real.
+
+### FE-05 — Gerenciamento de grupos
+
+- "Novo grupo" no dashboard: nome com até 30 caracteres e seleção de
+  participantes com busca; o criador entra automaticamente (total de 2
+  a 50). O grupo criado aparece na lista e é aberto em seguida.
+- "Participantes" no cabeçalho do grupo lista os membros e o papel de
+  cada um (Criador/Membro).
+- O criador pode renomear o grupo, adicionar participantes (até 50) e
+  remover participantes, com confirmação.
+- Os demais participantes podem sair do grupo, com confirmação. O
+  criador não pode sair nesta versão (regra do backend).
+- Erros do backend (limites, reentrada não suportada etc.) são
+  exibidos com mensagens em português.

@@ -21,6 +21,7 @@ import "@testing-library/jest-dom/vitest";
 import { DashboardPage } from "./DashboardPage";
 import { dashboardService } from "../services/api/dashboardService";
 import { conversationService } from "../services/api/conversationService";
+import { groupService } from "../services/api/groupService";
 import { useAuth } from "../features/auth/hooks/useAuth";
 import {
     CONNECTION_STATUS,
@@ -30,6 +31,12 @@ import {
 vi.mock("../services/api/dashboardService", () => ({
     dashboardService: {
         getDashboard: vi.fn(),
+    },
+}));
+
+vi.mock("../services/api/groupService", () => ({
+    groupService: {
+        create: vi.fn(),
     },
 }));
 
@@ -268,6 +275,34 @@ test("deve atualizar conversas e confirmar entrega ao receber mensagem em tempo 
         conversationId: "conv-nova",
         messageId: "690000000000000000000099",
     });
+
+    await waitFor(() => {
+        expect(dashboardService.getDashboard).toHaveBeenCalledTimes(2);
+    });
+});
+
+test("deve criar um grupo e abri-lo em seguida (CA09.4)", async () => {
+    groupService.create.mockResolvedValue({
+        group: { _id: "507f1f77bcf86cd799439099", type: "GROUP", name: "Projeto" },
+    });
+
+    render(<DashboardPage />);
+
+    fireEvent.click(
+        await screen.findByRole("button", { name: "+ Novo grupo" })
+    );
+
+    fireEvent.change(screen.getByLabelText("Nome do grupo"), {
+        target: { value: "Projeto" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Maria Oliveira/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar grupo" }));
+
+    expect(
+        await screen.findByRole("region", { name: "Conversa com Projeto" })
+    ).toBeInTheDocument();
+
+    expect(groupService.create).toHaveBeenCalledWith("Projeto", ["user-01"]);
 
     await waitFor(() => {
         expect(dashboardService.getDashboard).toHaveBeenCalledTimes(2);
