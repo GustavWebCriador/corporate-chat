@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { ContactList } from "../features/dashboard/components/ContactList";
 import { dashboardService } from "../services/api/dashboardService";
+import { conversationService } from "../services/api/conversationService";
+import { ConversationHistory } from "../features/conversations/components/ConversationHistory";
 
 export function DashboardPage() {
     const { user, logout, loading: authLoading } = useAuth();
@@ -12,6 +14,10 @@ export function DashboardPage() {
     const [status, setStatus] = useState("loading");
     const [error, setError] = useState("");
     const [reloadKey, setReloadKey] = useState(0);
+
+    const [openingContactId, setOpeningContactId] = useState(null);
+    const [conversationError, setConversationError] = useState("");
+    const [selectedConversation, setSelectedConversation] = useState(null);
 
     useEffect(() => {
         let active = true;
@@ -41,7 +47,6 @@ export function DashboardPage() {
                 );
             });
 
-        // Ignora respostas antigas após desmontagem ou nova tentativa.
         return () => {
             active = false;
         };
@@ -57,8 +62,6 @@ export function DashboardPage() {
         try {
             await logout();
         } catch {
-            // A sessão local é limpa pelo AuthProvider mesmo
-            // quando a revogação no backend não é confirmada.
             window.alert(
                 "Sessão local encerrada, mas não foi possível " +
                 "confirmar a revogação no servidor."
@@ -69,6 +72,55 @@ export function DashboardPage() {
     const contacts = dashboard?.contacts ?? [];
     const conversations = dashboard?.conversations ?? [];
 
+    async function handleSelectContact(contact) {
+        if (openingContactId !== null) {
+            return;
+        }
+
+        setOpeningContactId(contact.user_id);
+        setConversationError("");
+        setSelectedConversation(null);
+
+        try {
+            const response = await conversationService.createPrivate(
+                contact.user_id
+            );
+
+            const conversationId = response?.conversation?._id;
+
+            if (
+                typeof conversationId !== "string" ||
+                conversationId.length === 0
+            ) {
+                throw new Error("INVALID_CONVERSATION_RESPONSE");
+            }
+
+            // Preserva a identificação do destinatário
+            // para os checkpoints de entrega e leitura.
+            setSelectedConversation({
+                id: conversationId,
+                name: contact.name,
+                recipientUserId: contact.user_id,
+            });
+        } catch (error) {
+            if (error.status === 401) {
+                setConversationError(
+                    "Sua sessão não é mais válida. Entre novamente."
+                );
+            } else if (error.status === 403) {
+                setConversationError(
+                    "Você não tem permissão para abrir esta conversa."
+                );
+            } else {
+                setConversationError(
+                    "Não foi possível abrir a conversa. Tente novamente."
+                );
+            }
+        } finally {
+            setOpeningContactId(null);
+        }
+    }
+
     return (
         <div className="grid min-h-screen grid-cols-1 bg-navy-950 text-slate-300 md:grid-cols-[260px_minmax(0,1fr)]">
             <aside
@@ -76,7 +128,11 @@ export function DashboardPage() {
                 className="min-w-0 border-b border-slate-400/10 md:border-b-0 md:border-r"
             >
                 {status === "success" && (
-                    <ContactList contacts={contacts} />
+                    <ContactList
+                        contacts={contacts}
+                        onSelectContact={handleSelectContact}
+                        isOpening={openingContactId !== null}
+                    />
                 )}
             </aside>
 
@@ -101,6 +157,45 @@ export function DashboardPage() {
                         {authLoading ? "Saindo..." : "Sair"}
                     </button>
                 </header>
+
+                {openingContactId && (
+                    <p
+                        role="status"
+                        className="mb-4 text-sm text-teal-300"
+                    >
+                        Abrindo conversa...
+                    </p>
+                )}
+
+                {conversationError && (
+                    <p
+                        role="alert"
+                        className="mb-4 rounded-lg border border-rose-500/20 bg-navy-900 p-4 text-sm text-rose-500"
+                    >
+                        {conversationError}
+                    </p>
+                )}
+
+                {selectedConversation && (
+                    <section
+                        aria-labelledby="selected-conversation-title"
+                        className="mb-6 rounded-lg border border-teal-500/20 bg-navy-900 p-5"
+                    >
+                        <h2
+                            id="selected-conversation-title"
+                            className="text-lg font-semibold text-slate-300"
+                        >
+                            Conversa com {selectedConversation.name}
+                        </h2>
+
+                        <ConversationHistory
+                            key={selectedConversation.id}
+                            conversationId={selectedConversation.id}
+                            currentUserId={user?.user_id}
+                            recipientUserId={selectedConversation.recipientUserId}
+                        />
+                    </section>
+                )}
 
                 {status === "loading" && (
                     <p role="status" className="text-sm text-slate-400">
@@ -153,12 +248,13 @@ export function DashboardPage() {
                                         <p className="font-semibold">
                                             {conversation.type === "GROUP"
                                                 ? conversation.name
-                                                : conversation.contact?.name ?? "Contato indisponível"}
+                                                : conversation.contact?.name ??
+                                                  "Contato indisponível"}
                                         </p>
 
                                         <p className="mt-1 truncate text-sm text-slate-400">
                                             {conversation.last_message?.content ??
-                                                "Sem mensagens."}
+                                                "Nenhuma mensagem ainda."}
                                         </p>
                                     </li>
                                 ))}

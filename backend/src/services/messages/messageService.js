@@ -126,7 +126,7 @@ function throwPersistenceError(
     if (
         !error ||
         error.name !==
-            "PersistenceIntegrationError"
+        "PersistenceIntegrationError"
     ) {
         throw error;
     }
@@ -168,9 +168,9 @@ function throwPersistenceError(
 
     if (
         error.code ===
-            "SENDER_NOT_ACTIVE_MEMBER" ||
+        "SENDER_NOT_ACTIVE_MEMBER" ||
         error.code ===
-            "USER_NOT_ACTIVE_MEMBER"
+        "USER_NOT_ACTIVE_MEMBER"
     ) {
         throw AppError.forbidden(
             error.message,
@@ -210,7 +210,7 @@ function serializeMessage(
 
     const source =
         typeof message.toObject ===
-        "function"
+            "function"
             ? message.toObject()
             : message;
 
@@ -313,7 +313,7 @@ function compareMessages(
     ) {
         return (
             leftTime >
-            rightTime
+                rightTime
                 ? 1
                 : -1
         );
@@ -336,19 +336,19 @@ function compareMessages(
 
 function createMessageService({
     MessageModel =
-        Message,
+    Message,
 
     ConversationMemberModel =
-        ConversationMember,
+    ConversationMember,
 
     createMessagePersistence =
-        createMessage,
+    createMessage,
 
     assertActiveUser =
-        assertUserActive,
+    assertUserActive,
 
     now =
-        () => new Date(),
+    () => new Date(),
 } = {}) {
 
 
@@ -493,7 +493,7 @@ function createMessageService({
         ) {
             const currentMessageId =
                 currentMembership[
-                    messageField
+                messageField
                 ];
 
 
@@ -505,8 +505,8 @@ function createMessageService({
                 currentMessageId &&
                 currentMessageId
                     .toString() ===
-                    targetMessage._id
-                        .toString()
+                targetMessage._id
+                    .toString()
             ) {
                 return {
                     membership:
@@ -966,13 +966,40 @@ function createMessageService({
             deliveryAdvanced:
                 deliveryResult.advanced,
         };
-    }
+    } async function listCheckpoints({
+        conversationId,
+        userId,
+    }) {
+        const normalizedConversationId = normalizeObjectId(
+            conversationId,
+            {
+                field: "conversationId",
+                code: "INVALID_CONVERSATION_ID",
+            }
+        );
 
+        // Primeiro verifica se o solicitante pode
+        // consultar os dados desta conversa.
+        await assertActiveMembership({
+            conversationId: normalizedConversationId,
+            userId,
+        });
+
+        const members = await ConversationMemberModel.find({
+            conversation_id: normalizedConversationId,
+            status: "ACTIVE",
+        }).lean();
+
+        return {
+            checkpoints: members.map(serializeCheckpoint),
+        };
+    }
 
     return {
         sendMessage,
         markDelivered,
         markRead,
+        listCheckpoints,
     };
 }
 

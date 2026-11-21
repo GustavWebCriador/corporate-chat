@@ -19,6 +19,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { DashboardPage } from "./DashboardPage";
 import { dashboardService } from "../services/api/dashboardService";
+import { conversationService } from "../services/api/conversationService";
 import { useAuth } from "../features/auth/hooks/useAuth";
 
 vi.mock("../services/api/dashboardService", () => ({
@@ -27,8 +28,22 @@ vi.mock("../services/api/dashboardService", () => ({
     },
 }));
 
+vi.mock("../services/api/conversationService", () => ({
+    conversationService: {
+        createPrivate: vi.fn(),
+        getHistory: vi.fn(),
+    },
+}));
+
 vi.mock("../features/auth/hooks/useAuth", () => ({
     useAuth: vi.fn(),
+}));
+
+vi.mock("../features/realtime/hooks/useRealtime", () => ({
+    useRealtime: vi.fn(() => ({
+        socket: null,
+        status: "disconnected",
+    })),
 }));
 
 const dashboard = {
@@ -47,18 +62,36 @@ beforeEach(() => {
     vi.resetAllMocks();
 
     useAuth.mockReturnValue({
-        user: { name: "Usuário Teste" },
+        user: {
+            name: "Usuário Teste",
+        },
         loading: false,
         logout: vi.fn().mockResolvedValue(),
     });
 
-    dashboardService.getDashboard.mockResolvedValue(dashboard);
+    dashboardService.getDashboard.mockResolvedValue(
+        dashboard
+    );
+
+    conversationService.createPrivate.mockResolvedValue({
+        conversation: {
+            _id: "507f1f77bcf86cd799439011",
+            type: "PRIVATE",
+        },
+    });
+
+    conversationService.getHistory.mockResolvedValue({
+        items: [],
+        hasMore: false,
+        nextCursor: null,
+    });
 });
 
 afterEach(() => {
     cleanup();
 });
 
+// FE-03 — Carregamento dos contatos
 test("deve carregar contatos reais do serviço", async () => {
     render(<DashboardPage />);
 
@@ -66,10 +99,12 @@ test("deve carregar contatos reais do serviço", async () => {
         await screen.findByText("Maria Oliveira")
     ).toBeInTheDocument();
 
-    expect(dashboardService.getDashboard)
-        .toHaveBeenCalledTimes(1);
+    expect(
+        dashboardService.getDashboard
+    ).toHaveBeenCalledTimes(1);
 });
 
+// FE-03 — Estado vazio
 test("deve apresentar o estado vazio", async () => {
     dashboardService.getDashboard.mockResolvedValue({
         contacts: [],
@@ -87,6 +122,7 @@ test("deve apresentar o estado vazio", async () => {
     ).toBeInTheDocument();
 });
 
+// FE-03 — Tratamento de erros e nova tentativa
 test("deve permitir tentar novamente após erro", async () => {
     dashboardService.getDashboard
         .mockRejectedValueOnce(new Error("Falha"))
@@ -110,15 +146,19 @@ test("deve permitir tentar novamente após erro", async () => {
         await screen.findByText("Maria Oliveira")
     ).toBeInTheDocument();
 
-    expect(dashboardService.getDashboard)
-        .toHaveBeenCalledTimes(2);
+    expect(
+        dashboardService.getDashboard
+    ).toHaveBeenCalledTimes(2);
 });
 
+// FE-03 — Preservação do logout da FE-02
 test("deve preservar o logout da FE-02", async () => {
     const logout = vi.fn().mockResolvedValue();
 
     useAuth.mockReturnValue({
-        user: { name: "Usuário Teste" },
+        user: {
+            name: "Usuário Teste",
+        },
         loading: false,
         logout,
     });
@@ -134,4 +174,56 @@ test("deve preservar o logout da FE-02", async () => {
     await waitFor(() => {
         expect(logout).toHaveBeenCalledTimes(1);
     });
+});
+
+// FE-04 — Seleção e abertura de conversa privada
+test("deve abrir conversa privada ao selecionar um contato", async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(
+        await screen.findByRole("button", {
+            name: "Abrir conversa com Maria Oliveira",
+        })
+    );
+
+    await waitFor(() => {
+        expect(
+            conversationService.createPrivate
+        ).toHaveBeenCalledWith("user-01");
+    });
+
+    expect(
+        await screen.findByRole("heading", {
+            name: "Conversa com Maria Oliveira",
+        })
+    ).toBeInTheDocument();
+
+    expect(
+        conversationService.createPrivate
+    ).toHaveBeenCalledTimes(1);
+});
+
+// FE-04 — Tratamento de falha ao abrir uma conversa
+test("deve apresentar erro quando não consegue abrir conversa", async () => {
+    conversationService.createPrivate.mockRejectedValue(
+        new Error("Falha de conexão")
+    );
+
+    render(<DashboardPage />);
+
+    fireEvent.click(
+        await screen.findByRole("button", {
+            name: "Abrir conversa com Maria Oliveira",
+        })
+    );
+
+    expect(
+        await screen.findByRole("alert")
+    ).toHaveTextContent(
+        "Não foi possível abrir a conversa."
+    );
+
+    expect(
+        conversationService.createPrivate
+    ).toHaveBeenCalledTimes(1);
 });
