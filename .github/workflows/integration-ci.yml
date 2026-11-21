@@ -1,0 +1,154 @@
+name: Integration CI
+
+# Testes de integração front/back (FE-07): o frontend real é executado
+# contra o backend real, com PostgreSQL e MongoDB criados do zero.
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/integration-ci.yml"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/integration-ci.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Frontend + backend integration
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16
+
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: corporate_chat_ci
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d corporate_chat_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+      mongodb:
+        image: mongo:8
+
+        env:
+          MONGO_INITDB_ROOT_USERNAME: ci_mongo
+          MONGO_INITDB_ROOT_PASSWORD: ci_mongo_password
+          MONGO_INITDB_DATABASE: corporate_chat_ci
+
+        ports:
+          - 27017:27017
+
+        options: >-
+          --health-cmd "mongosh --quiet --username ci_mongo --password ci_mongo_password --authenticationDatabase admin --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    # Valores fictícios, válidos apenas neste job.
+    env:
+      NODE_ENV: development
+      PORT: 3000
+
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ci_user
+      POSTGRES_PASSWORD: ci_password
+      POSTGRES_DB: corporate_chat_ci
+
+      MONGO_HOST: 127.0.0.1
+      MONGO_PORT: 27017
+      MONGO_USER: ci_mongo
+      MONGO_PASSWORD: ci_mongo_password
+      MONGO_DB: corporate_chat_ci
+
+      DEV_SEED_PASSWORD: "SenhaDev@123"
+
+      JWT_SECRET: "ci-only-secret-corporate-chat-2026-integration"
+      JWT_EXPIRES_IN: 1h
+
+      CORS_ORIGIN: "http://localhost:5173"
+
+      VITE_BACKEND_URL: http://localhost:3000
+      INTEGRATION_PASSWORD: "SenhaDev@123"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run PostgreSQL migrations
+        working-directory: backend
+        run: npm run db:migrate
+
+      - name: Create development fixtures
+        working-directory: backend
+        run: npm run seed:dev
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          nohup npm start > backend.log 2>&1 &
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/api/v1/health | grep -q '"status":"ok"'; then
+              echo "Backend ready."
+              exit 0
+            fi
+
+            echo "Waiting for backend ($attempt/30)..."
+            sleep 2
+          done
+
+          cat backend.log
+          exit 1
+
+      - name: Run integration tests
+        working-directory: frontend
+        run: npm run test:integration
+
+      - name: Show backend log
+        if: failure()
+        working-directory: backend
+        run: cat backend.log

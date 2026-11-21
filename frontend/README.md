@@ -31,6 +31,26 @@ npm run lint
 npm test
 npm run build
 
+## Testes de integração (FE-07)
+
+Executam o código real do frontend contra o backend em execução,
+com PostgreSQL e MongoDB populados pelo seed de desenvolvimento.
+Cobrem sessão, conversas, tempo real, grupos e administração.
+
+Pré-requisitos:
+
+1. Bancos em execução e backend configurado.
+2. No backend: npm run db:migrate, npm run seed:dev e npm start.
+
+Execução (no diretório frontend):
+
+    VITE_BACKEND_URL=http://localhost:3000     INTEGRATION_PASSWORD=<valor de DEV_SEED_PASSWORD do backend>     npm run test:integration
+
+Os testes criam dados com identificadores únicos por execução, sem
+alterar os registros do seed. No CI, o workflow
+.github/workflows/integration-ci.yml cria os bancos do zero e executa
+a mesma suíte a cada Pull Request.
+
 ## Integração
 
 A interface utiliza a API REST do backend,
@@ -50,6 +70,7 @@ do projeto.
 | FE-05 | Gerenciamento de grupos |
 | FE-06 | Comunicação em tempo real (Socket.IO) |
 | FE-08 | Interfaces administrativas |
+| FE-07 | Testes de integração front/back |
 
 ### FE-04 — Conversas privadas e mensagens
 
