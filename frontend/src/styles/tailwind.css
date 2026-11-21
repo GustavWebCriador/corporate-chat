@@ -20,3 +20,70 @@
     --color-amber-400: #fbbf24;
     --color-rose-500: #f43f5e;
 }
+
+/*
+ * Reset de estilos da área autenticada (FE-09).
+ *
+ * O projeto não importa o preflight do Tailwind para preservar o visual
+ * das telas públicas (login e solicitação de acesso). Aqui o reset é
+ * aplicado apenas dentro de .app-surface, na camada base, para que os
+ * utilitários continuem prevalecendo.
+ */
+@layer base {
+    .app-surface,
+    .app-surface *,
+    .app-surface ::before,
+    .app-surface ::after {
+        box-sizing: border-box;
+        border: 0 solid;
+        margin: 0;
+        padding: 0;
+    }
+
+    .app-surface h1,
+    .app-surface h2,
+    .app-surface h3,
+    .app-surface h4 {
+        font-size: inherit;
+        font-weight: inherit;
+    }
+
+    .app-surface ol,
+    .app-surface ul {
+        list-style: none;
+    }
+
+    .app-surface a {
+        color: inherit;
+        text-decoration: inherit;
+    }
+
+    .app-surface button,
+    .app-surface input,
+    .app-surface textarea,
+    .app-surface select {
+        font: inherit;
+        color: inherit;
+        background-color: transparent;
+    }
+
+    .app-surface button:not(:disabled),
+    .app-surface [role="button"]:not(:disabled) {
+        cursor: pointer;
+    }
+
+    .app-surface ::placeholder {
+        color: var(--color-slate-400);
+        opacity: 1;
+    }
+
+    .app-surface svg {
+        display: block;
+    }
+
+    /* Foco sempre visível para navegação por teclado. */
+    .app-surface :focus-visible {
+        outline: 2px solid var(--color-teal-400);
+        outline-offset: 2px;
+    }
+}

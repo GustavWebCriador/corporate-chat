@@ -68,7 +68,7 @@ export function ContactList({
                 />
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div className="max-h-80 min-h-0 flex-1 overflow-y-auto p-2 md:max-h-none">
                 {filteredContacts.length === 0 ? (
                     <p
                         role="status"

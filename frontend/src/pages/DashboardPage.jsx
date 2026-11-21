@@ -248,10 +248,10 @@ export function DashboardPage() {
     }
 
     return (
-        <div className="grid min-h-screen grid-cols-1 bg-navy-950 text-slate-300 md:grid-cols-[260px_minmax(0,1fr)]">
+        <div className="grid min-h-screen grid-cols-1 bg-navy-950 text-slate-300 md:h-dvh md:min-h-0 md:grid-cols-[260px_minmax(0,1fr)] md:overflow-hidden">
             <aside
                 aria-label="Contatos disponíveis"
-                className={`min-w-0 border-b border-slate-400/10 md:border-b-0 md:border-r ${
+                className={`order-last min-w-0 border-t border-slate-400/10 md:order-none md:overflow-y-auto md:border-r md:border-t-0 ${
                     activeConversation ? "hidden md:block" : ""
                 }`}
             >
@@ -264,7 +264,7 @@ export function DashboardPage() {
                 )}
             </aside>
 
-            <main className="flex min-w-0 flex-col px-4 py-5 md:px-6">
+            <main id="conteudo" tabIndex={-1} className="flex min-h-0 min-w-0 flex-col px-3 py-4 outline-none sm:px-4 md:px-6 md:py-5">
                 <header className="mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-slate-400/10 pb-4">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-300">
@@ -320,10 +320,10 @@ export function DashboardPage() {
                 )}
 
                 {status === "success" && (
-                    <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+                    <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 md:grid-rows-[minmax(0,1fr)] lg:grid-cols-[300px_minmax(0,1fr)]">
                         <section
                             aria-labelledby="conversations-title"
-                            className={activeConversation ? "hidden lg:block" : ""}
+                            className={`md:min-h-0 md:overflow-y-auto ${activeConversation ? "hidden lg:block" : ""}`}
                         >
                             <div className="mb-3 flex items-center justify-between">
                                 <h2

@@ -20,7 +20,11 @@ export function AdminPage() {
     const [usersVersion, setUsersVersion] = useState(0);
 
     return (
-        <div className="min-h-screen bg-navy-950 px-4 py-5 text-slate-300 md:px-6">
+        <main
+            id="conteudo"
+            tabIndex={-1}
+            className="min-h-screen bg-navy-950 px-3 py-4 text-slate-300 outline-none sm:px-4 md:px-6 md:py-5"
+        >
             <header className="mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-slate-400/10 pb-4">
                 <div>
                     <h1 className="text-2xl font-bold">Administração</h1>
@@ -75,6 +79,6 @@ export function AdminPage() {
                     />
                 )}
             </div>
-        </div>
+        </main>
     );
 }

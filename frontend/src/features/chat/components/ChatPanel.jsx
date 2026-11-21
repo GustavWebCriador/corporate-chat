@@ -65,7 +65,7 @@ export function ChatPanel({
     return (
         <section
             aria-label={`Conversa com ${title}`}
-            className="flex h-full min-h-[28rem] flex-col rounded-lg border border-slate-400/10 bg-navy-900"
+            className="flex h-[75dvh] min-h-0 flex-col rounded-lg border border-slate-400/10 bg-navy-900 md:h-full"
         >
             <header className="flex items-center gap-3 border-b border-slate-400/10 px-4 py-3">
                 {onBack && (
@@ -78,7 +78,9 @@ export function ChatPanel({
                     </button>
                 )}
 
-                <Avatar name={title} isGroup={isGroup} size="lg" />
+                <span className="hidden sm:block">
+                    <Avatar name={title} isGroup={isGroup} size="lg" />
+                </span>
 
                 <div className="min-w-0 flex-1">
                     <h2 className="truncate text-base font-semibold text-slate-300">

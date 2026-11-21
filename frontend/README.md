@@ -71,6 +71,7 @@ do projeto.
 | FE-06 | Comunicação em tempo real (Socket.IO) |
 | FE-08 | Interfaces administrativas |
 | FE-07 | Testes de integração front/back |
+| FE-09 | Responsividade, acessibilidade e usabilidade |
 
 ### FE-04 — Conversas privadas e mensagens
 
@@ -141,3 +142,21 @@ tempo real.
   usuário; ativar/desativar com confirmação; redefinição de senha pelo
   administrador.
 - O administrador não pode desativar a própria conta pela interface.
+
+### FE-09 — Responsividade, acessibilidade e usabilidade
+
+- Reset de estilos aplicado somente à área autenticada (`.app-surface`):
+  botões sem fundo padrão do navegador, listas sem marcadores e links
+  legíveis no tema escuro. As telas públicas mantêm o visual original.
+- Celular: conversas aparecem antes dos contatos, a lista de contatos
+  tem altura limitada, a barra lateral fixa é ocultada e o chat ocupa a
+  tela com o botão "Voltar".
+- A partir de tablet, a página ocupa a altura da tela e apenas as
+  listas rolam; o chat abre na mensagem mais recente e carrega o
+  histórico ao rolar até o topo.
+- Contraste: cores de avatar com texto branco em 4,5:1 ou mais (WCAG AA).
+- Teclado: link "Pular para o conteúdo", foco sempre visível e regiões
+  `main` nas páginas autenticadas.
+- `src/accessibility.test.jsx` executa o axe-core nas principais telas
+  a cada `npm test` (o contraste é verificado no navegador, pois o
+  jsdom não calcula layout).

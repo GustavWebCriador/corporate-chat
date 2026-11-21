@@ -1,10 +1,11 @@
 // Paleta e cálculo de iniciais aproveitados do protótipo visual.
+// Tons escuros: texto branco com contraste mínimo de 4,5:1 (WCAG AA).
 const COLORS = [
-    "bg-teal-500",
-    "bg-violet-500",
-    "bg-pink-500",
-    "bg-amber-500",
-    "bg-blue-500",
+    "bg-teal-700",
+    "bg-violet-600",
+    "bg-pink-700",
+    "bg-amber-700",
+    "bg-blue-600",
 ];
 
 function getInitials(name = "") {
