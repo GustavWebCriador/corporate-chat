@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../features/auth/hooks/useAuth";
+import { useRealtime } from "../features/realtime/hooks/useRealtime";
 import { ContactList } from "../features/dashboard/components/ContactList";
 import { ConversationHistory } from "../features/conversations/components/ConversationHistory";
 import { CreateGroupDialog } from "../features/groups/components/CreateGroupDialog";
@@ -8,9 +9,32 @@ import { GroupDetailsDialog } from "../features/groups/components/GroupDetailsDi
 
 import { dashboardService } from "../services/api/dashboardService";
 import { conversationService } from "../services/api/conversationService";
+import { markRealtimeDelivered } from "../services/realtime/chatCheckpoints";
+import {
+    isValidRealtimeMessage,
+    mergeRealtimeMessage,
+    rememberNewestMessage,
+    replayRealtimeMessages,
+} from "../features/dashboard/utils/realtimeConversations";
 
 export function DashboardPage() {
     const { user, logout, loading: authLoading } = useAuth();
+    const {
+        socket,
+        status: realtimeStatus,
+        readyVersion = 0,
+    } = useRealtime();
+
+    const userId = user?.user_id;
+    const requestVersionRef = useRef(0);
+    const sessionGenerationRef = useRef(0);
+    const realtimeMessagesRef = useRef(new Map());
+    const knownConversationIdsRef = useRef(new Set());
+    const unknownConversationIdsRef = useRef(new Set());
+    const pendingDeliveriesRef = useRef(new Map());
+    const confirmedDeliveriesRef = useRef(new Set());
+    const deliveryAttemptsRef = useRef(new Map());
+    const selectedConversationIdRef = useRef(null);
 
     const [dashboard, setDashboard] = useState(null);
     const [status, setStatus] = useState("loading");
@@ -23,12 +47,35 @@ export function DashboardPage() {
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [managingGroupId, setManagingGroupId] = useState(null);
 
+    // Não mantém caches de outra sessão e invalida ACKs antigos.
+    useEffect(() => {
+        const messages = realtimeMessagesRef.current;
+        const known = knownConversationIdsRef.current;
+        const unknown = unknownConversationIdsRef.current;
+        const pending = pendingDeliveriesRef.current;
+        const confirmed = confirmedDeliveriesRef.current;
+        const attempts = deliveryAttemptsRef.current;
+
+        return () => {
+            sessionGenerationRef.current += 1;
+            messages.clear();
+            known.clear();
+            unknown.clear();
+            pending.clear();
+            confirmed.clear();
+            attempts.clear();
+        };
+    }, [userId]);
+
+    // A API é a fonte da lista de conversas. Em reconexões o
+    // readyVersion força nova consulta, cobrindo eventos perdidos.
     useEffect(() => {
         let active = true;
+        const version = ++requestVersionRef.current;
 
         dashboardService.getDashboard()
             .then((response) => {
-                if (!active) return;
+                if (!active || version !== requestVersionRef.current) return;
 
                 if (
                     !Array.isArray(response?.contacts) ||
@@ -37,14 +84,40 @@ export function DashboardPage() {
                     throw new Error("INVALID_DASHBOARD_RESPONSE");
                 }
 
-                setDashboard(response);
+                // Não permite que um HTTP antigo desfaça um message:new.
+                const merged = replayRealtimeMessages(
+                    response,
+                    realtimeMessagesRef.current
+                );
+
+                const known = new Set(
+                    merged.conversations.map((item) => item.conversation_id)
+                );
+                knownConversationIdsRef.current = known;
+                for (const id of unknownConversationIdsRef.current) {
+                    if (known.has(id)) {
+                        unknownConversationIdsRef.current.delete(id);
+                    }
+                }
+
+                setDashboard(merged);
                 setError("");
                 setStatus("success");
             })
             .catch((requestError) => {
-                if (!active) return;
+                if (!active || version !== requestVersionRef.current) return;
 
-                setStatus("error");
+                if (requestError?.status === 401) {
+                    setDashboard(null);
+                    setSelectedConversation(null);
+                    setStatus("error");
+                } else {
+                    // Uma falha temporária não descarta conversas carregadas.
+                    setStatus((current) =>
+                        current === "success" ? current : "error"
+                    );
+                }
+
                 setError(
                     requestError?.status === 401
                         ? "Sua sessão não é mais válida. Entre novamente."
@@ -55,7 +128,7 @@ export function DashboardPage() {
         return () => {
             active = false;
         };
-    }, [reloadKey]);
+    }, [reloadKey, readyVersion, userId]);
 
     function refreshDashboard() {
         setReloadKey((current) => current + 1);
@@ -68,6 +141,15 @@ export function DashboardPage() {
     }
 
     async function handleLogout() {
+        // Invalida imediatamente o cache e qualquer ACK em andamento.
+        sessionGenerationRef.current += 1;
+        realtimeMessagesRef.current.clear();
+        knownConversationIdsRef.current.clear();
+        unknownConversationIdsRef.current.clear();
+        pendingDeliveriesRef.current.clear();
+        confirmedDeliveriesRef.current.clear();
+        deliveryAttemptsRef.current.clear();
+
         try {
             await logout();
         } catch {
@@ -83,6 +165,149 @@ export function DashboardPage() {
     const activeContacts = contacts.filter(
         (contact) => contact.status === "ACTIVE"
     );
+
+    // Os handlers de socket precisam consultar a seleção mais recente
+    // sem recriar o listener a cada mudança de conversa.
+    useEffect(() => {
+        selectedConversationIdRef.current = selectedConversation?.id ?? null;
+    }, [selectedConversation?.id]);
+
+    // Cada ACK é tentado uma vez por conexão pronta. Em caso de
+    // falha, fica pendente até a próxima reconexão/reconciliação.
+    // O backend é a fonte autoritativa do checkpoint.
+    const queueDelivery = useCallback((conversationId, messageId) => {
+        if (
+            !userId ||
+            realtimeStatus !== "connected" ||
+            !socket?.connected ||
+            typeof conversationId !== "string" ||
+            typeof messageId !== "string"
+        ) {
+            return;
+        }
+
+        const key = `${conversationId}:${messageId}`;
+        if (confirmedDeliveriesRef.current.has(key)) return;
+
+        const pending = pendingDeliveriesRef.current;
+        if (!pending.has(key)) {
+            // Limita o armazenamento sem alterar mensagens persistidas.
+            if (pending.size >= 100) {
+                const oldest = pending.keys().next().value;
+                pending.delete(oldest);
+                deliveryAttemptsRef.current.delete(oldest);
+            }
+            pending.set(key, { conversationId, messageId });
+        }
+
+        // Não envia ACKs duplicados na mesma conexão, mesmo após timeout.
+        if (deliveryAttemptsRef.current.get(key) === readyVersion) return;
+        deliveryAttemptsRef.current.set(key, readyVersion);
+
+        const item = pending.get(key);
+        const generation = sessionGenerationRef.current;
+
+        void markRealtimeDelivered(socket, conversationId, messageId)
+            .then(() => {
+                if (
+                    generation !== sessionGenerationRef.current ||
+                    pendingDeliveriesRef.current.get(key) !== item
+                ) {
+                    return;
+                }
+
+                pendingDeliveriesRef.current.delete(key);
+                deliveryAttemptsRef.current.delete(key);
+                const confirmed = confirmedDeliveriesRef.current;
+                confirmed.add(key);
+                if (confirmed.size > 200) {
+                    const oldest = confirmed.values().next().value;
+                    confirmed.delete(oldest);
+                }
+            })
+            .catch(() => {
+                // Mantém pendência; novo readyVersion permitirá retry.
+            });
+    }, [realtimeStatus, socket, readyVersion, userId]);
+
+    // Reconcilia entregas perdidas durante desconexão. Não marca
+    // leitura: a conversa selecionada é responsabilidade do histórico.
+    useEffect(() => {
+        if (status !== "success") return;
+
+        for (const conversation of dashboard?.conversations ?? []) {
+            const last = conversation.last_message;
+            if (
+                conversation.conversation_id === selectedConversation?.id ||
+                !last?.message_id ||
+                last.sender_id === userId
+            ) {
+                continue;
+            }
+            queueDelivery(conversation.conversation_id, last.message_id);
+        }
+
+        // Pendências com ACK perdido são repetidas após novo readyVersion.
+        for (const pending of pendingDeliveriesRef.current.values()) {
+            if (pending.conversationId !== selectedConversation?.id) {
+                queueDelivery(pending.conversationId, pending.messageId);
+            }
+        }
+    }, [
+        dashboard,
+        status,
+        selectedConversation?.id,
+        readyVersion,
+        queueDelivery,
+        userId,
+    ]);
+
+    // Listener global: mantém a prévia atualizada também para
+    // conversas não selecionadas. Não interfere no ConversationHistory.
+    useEffect(() => {
+        if (
+            realtimeStatus !== "connected" ||
+            !socket?.connected
+        ) {
+            return;
+        }
+
+        function handleNewMessage(payload) {
+            const message = payload?.message;
+            if (!isValidRealtimeMessage(message)) return;
+
+            const conversationId = message.conversation_id;
+            const isKnown = knownConversationIdsRef.current.has(conversationId);
+
+            rememberNewestMessage(realtimeMessagesRef.current, message);
+            setDashboard((current) => mergeRealtimeMessage(current, message));
+
+            // Não marca como lida nem duplica a responsabilidade
+            // do componente da conversa atualmente selecionada.
+            if (
+                message.sender_id !== userId &&
+                selectedConversationIdRef.current !== conversationId
+            ) {
+                queueDelivery(conversationId, message._id);
+            }
+
+            // Uma conversa criada por terceiros pode não constar
+            // na lista local; atualiza uma única vez até reconciliar.
+            if (!isKnown && !unknownConversationIdsRef.current.has(conversationId)) {
+                const unknown = unknownConversationIdsRef.current;
+                if (unknown.size >= 100) {
+                    unknown.delete(unknown.values().next().value);
+                }
+                unknown.add(conversationId);
+                setReloadKey((current) => current + 1);
+            }
+        }
+
+        socket.on("message:new", handleNewMessage);
+        return () => {
+            socket.off("message:new", handleNewMessage);
+        };
+    }, [socket, realtimeStatus, userId, queueDelivery]);
 
     async function handleSelectContact(contact) {
         if (openingContactId !== null) return;
@@ -230,6 +455,12 @@ export function DashboardPage() {
                         {authLoading ? "Saindo..." : "Sair"}
                     </button>
                 </header>
+
+                {status === "success" && error && (
+                    <p role="alert" className="mb-4 rounded-lg border border-rose-500/20 p-3 text-sm text-rose-400">
+                        {error} As conversas já carregadas continuam disponíveis.
+                    </p>
+                )}
 
                 {openingContactId && (
                     <p role="status" className="mb-4 text-sm text-teal-300">

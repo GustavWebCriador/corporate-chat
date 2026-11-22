@@ -1,6 +1,5 @@
-
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import { DashboardPage } from "./DashboardPage";
@@ -8,6 +7,8 @@ import { dashboardService } from "../services/api/dashboardService";
 import { conversationService } from "../services/api/conversationService";
 import { groupService } from "../services/api/groupService";
 import { useAuth } from "../features/auth/hooks/useAuth";
+import { useRealtime } from "../features/realtime/hooks/useRealtime";
+import { markRealtimeDelivered, markRealtimeRead } from "../services/realtime/chatCheckpoints";
 
 vi.mock("../services/api/dashboardService", () => ({
     dashboardService: { getDashboard: vi.fn() },
@@ -32,6 +33,11 @@ vi.mock("../services/api/groupService", () => ({
 vi.mock("../features/auth/hooks/useAuth", () => ({ useAuth: vi.fn() }));
 vi.mock("../features/realtime/hooks/useRealtime", () => ({
     useRealtime: vi.fn(() => ({ socket: null, status: "disconnected" })),
+}));
+
+vi.mock("../services/realtime/chatCheckpoints", () => ({
+    markRealtimeDelivered: vi.fn(),
+    markRealtimeRead: vi.fn(),
 }));
 
 const groupId = "507f1f77bcf86cd799439011";
@@ -59,6 +65,13 @@ const dashboardWithConversations = {
 
 beforeEach(() => {
     vi.resetAllMocks();
+    useRealtime.mockReturnValue({
+        socket: null,
+        status: "disconnected",
+        readyVersion: 0,
+    });
+    markRealtimeDelivered.mockResolvedValue({});
+    markRealtimeRead.mockResolvedValue({});
     useAuth.mockReturnValue({
         user: { user_id: "current-user", name: "Usuário Teste" },
         loading: false,
@@ -190,4 +203,95 @@ test("deve manter o botão de gerenciamento restrito a grupos", async () => {
     fireEvent.click(buttons.at(-1));
     expect(await screen.findByRole("heading", { name: "Conversa com Maria Oliveira" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gerenciar grupo" })).not.toBeInTheDocument();
+});
+
+
+function makeSocket() {
+    const handlers = new Map();
+    const socket = {
+        connected: true,
+        on: vi.fn((event, callback) => handlers.set(event, callback)),
+        off: vi.fn(),
+    };
+    return { socket, handlers };
+}
+
+const realtimeMessage = {
+    _id: "607f1f77bcf86cd799439099",
+    conversation_id: groupId,
+    sender_id: "user-01",
+    content: "Nova mensagem em tempo real",
+    created_at: "2026-11-21T23:00:00.000Z",
+};
+
+test("FE-06: atualiza a prévia ao receber message:new", async () => {
+    const { socket, handlers } = makeSocket();
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 0 });
+    dashboardService.getDashboard.mockResolvedValue(dashboardWithConversations);
+    render(<DashboardPage />);
+    await screen.findByRole("button", { name: "Abrir grupo Equipe" });
+
+    act(() => handlers.get("message:new")?.({ message: realtimeMessage }));
+    expect(await screen.findByText(realtimeMessage.content)).toBeInTheDocument();
+});
+
+test("FE-06: atualiza dashboard após reconexão", async () => {
+    const { socket } = makeSocket();
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 0 });
+    const { rerender } = render(<DashboardPage />);
+    await screen.findByText("Maria Oliveira");
+    expect(dashboardService.getDashboard).toHaveBeenCalledTimes(1);
+
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 1 });
+    rerender(<DashboardPage />);
+    await waitFor(() => expect(dashboardService.getDashboard).toHaveBeenCalledTimes(2));
+});
+
+test("FE-06: confirma entrega sem abrir a conversa", async () => {
+    const { socket, handlers } = makeSocket();
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 0 });
+    dashboardService.getDashboard.mockResolvedValue(dashboardWithConversations);
+    render(<DashboardPage />);
+    await screen.findByRole("button", { name: "Abrir grupo Equipe" });
+
+    act(() => handlers.get("message:new")?.({ message: realtimeMessage }));
+    await waitFor(() => expect(markRealtimeDelivered).toHaveBeenCalledWith(
+        socket, groupId, realtimeMessage._id
+    ));
+    expect(markRealtimeRead).not.toHaveBeenCalled();
+    expect(screen.queryByRole("heading", { name: "Grupo: Equipe" })).not.toBeInTheDocument();
+});
+
+test("FE-06: não confirma entrega da própria mensagem", async () => {
+    const { socket, handlers } = makeSocket();
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 0 });
+    dashboardService.getDashboard.mockResolvedValue(dashboardWithConversations);
+    render(<DashboardPage />);
+    await screen.findByRole("button", { name: "Abrir grupo Equipe" });
+
+    act(() => handlers.get("message:new")?.({
+        message: { ...realtimeMessage, sender_id: "current-user" },
+    }));
+    expect(markRealtimeDelivered).not.toHaveBeenCalled();
+    expect(markRealtimeRead).not.toHaveBeenCalled();
+});
+
+test("FE-06: repete entrega após reconexão", async () => {
+    const { socket, handlers } = makeSocket();
+    markRealtimeDelivered.mockRejectedValueOnce(new Error("Timeout"))
+        .mockResolvedValue({});
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 0 });
+    dashboardService.getDashboard.mockResolvedValue(dashboardWithConversations);
+    const { rerender } = render(<DashboardPage />);
+    await screen.findByRole("button", { name: "Abrir grupo Equipe" });
+
+    await act(async () => {
+        handlers.get("message:new")?.({ message: realtimeMessage });
+        await Promise.resolve();
+    });
+    expect(markRealtimeDelivered).toHaveBeenCalledTimes(1);
+
+    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 1 });
+    rerender(<DashboardPage />);
+    await waitFor(() => expect(markRealtimeDelivered).toHaveBeenCalledTimes(2));
 });

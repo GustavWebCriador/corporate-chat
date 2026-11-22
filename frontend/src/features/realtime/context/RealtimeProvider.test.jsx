@@ -1,4 +1,3 @@
-
 import {
     act,
     cleanup,
@@ -33,7 +32,7 @@ let handlers;
 let socket;
 
 function ConnectionStatus() {
-    const { status, socket: activeSocket } = useRealtime();
+    const { status, socket: activeSocket, readyVersion } = useRealtime();
 
     return (
         <>
@@ -44,6 +43,7 @@ function ConnectionStatus() {
             <output data-testid="socket-active">
                 {activeSocket ? "Sim" : "Não"}
             </output>
+            <output data-testid="socket-ready-version">{readyVersion}</output>
         </>
     );
 }
@@ -169,4 +169,26 @@ test("deve tratar erro de autenticação da conexão", () => {
     expect(
         screen.getByTestId("socket-active")
     ).toHaveTextContent("Não");
+});
+
+test("deve sinalizar cada realtime:ready, inclusive após reconexão", () => {
+    useAuth.mockReturnValue({ token: "jwt-teste" });
+    render(renderProvider());
+
+    act(() => {
+        handlers.get("realtime:ready")?.({ recovered: false });
+    });
+    expect(screen.getByTestId("socket-status")).toHaveTextContent("connected");
+
+    act(() => {
+        handlers.get("disconnect")?.("transport close");
+    });
+    expect(screen.getByTestId("socket-status")).toHaveTextContent("disconnected");
+
+    act(() => {
+        handlers.get("realtime:ready")?.({ recovered: false });
+    });
+    expect(screen.getByTestId("socket-status")).toHaveTextContent("connected");
+    expect(screen.getByTestId("socket-ready-version")).toHaveTextContent("2");
+    expect(socket.connect).toHaveBeenCalledTimes(1);
 });
