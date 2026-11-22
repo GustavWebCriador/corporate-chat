@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -13,6 +12,7 @@ export function RealtimeProvider({ children }) {
         socket: null,
         status: "disconnected",
         error: null,
+        readyVersion: 0,
     });
 
     useEffect(() => {
@@ -23,30 +23,38 @@ export function RealtimeProvider({ children }) {
         const socket = createChatSocket(token);
 
         function handleReady() {
-            setConnection({
+            setConnection((current) => ({
                 token,
                 socket,
                 status: "connected",
                 error: null,
-            });
+                // Cada realtime:ready indica nova sessão de transporte.
+                // Permite atualizar a lista após reconexões, mesmo
+                // quando o objeto Socket.IO permanece o mesmo.
+                readyVersion: current.token === token
+                    ? current.readyVersion + 1
+                    : 1,
+            }));
         }
 
         function handleConnectError(error) {
-            setConnection({
+            setConnection((current) => ({
+                ...current,
                 token,
                 socket: null,
                 status: "error",
                 error: error?.data?.code ?? "CONNECTION_ERROR",
-            });
+            }));
         }
 
         function handleDisconnect() {
-            setConnection({
+            setConnection((current) => ({
+                ...current,
                 token,
                 socket: null,
                 status: "disconnected",
                 error: null,
-            });
+            }));
         }
 
         // Os listeners são registrados antes da conexão.
@@ -72,11 +80,13 @@ export function RealtimeProvider({ children }) {
             socket: connection.socket,
             status: connection.status,
             error: connection.error,
+            readyVersion: connection.readyVersion,
         }
         : {
             socket: null,
             status: token ? "connecting" : "disconnected",
             error: null,
+            readyVersion: 0,
         };
 
     return (

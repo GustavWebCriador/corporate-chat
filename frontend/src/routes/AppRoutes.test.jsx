@@ -1,4 +1,3 @@
-
 import {
     afterEach,
     beforeEach,
@@ -24,6 +23,7 @@ import {
 import { AppRoutes } from "./AppRoutes";
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { dashboardService } from "../services/api/dashboardService";
+import { RealtimeContext } from "../features/realtime/context/realtimeContext";
 
 vi.mock("../features/auth/hooks/useAuth", () => ({
     useAuth: vi.fn(),
@@ -48,8 +48,17 @@ function LocationSpy() {
 function renderRoutes(initialPath) {
     return render(
         <MemoryRouter initialEntries={[initialPath]}>
-            <AppRoutes />
-            <LocationSpy />
+            <RealtimeContext.Provider
+                value={{
+                    socket: null,
+                    status: "disconnected",
+                    error: null,
+                    readyVersion: 0,
+                }}
+            >
+                <AppRoutes />
+                <LocationSpy />
+            </RealtimeContext.Provider>
         </MemoryRouter>
     );
 }
