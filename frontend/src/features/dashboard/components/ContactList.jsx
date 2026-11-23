@@ -1,15 +1,5 @@
-
 import { useState } from "react";
-
-function getInitials(name) {
-    return name
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((part) => part[0])
-        .join("")
-        .toUpperCase();
-}
+import { MvpAvatar } from "../../../components/ui/MvpAvatar";
 
 export function ContactList({
     contacts = [],
@@ -34,12 +24,12 @@ export function ContactList({
     return (
         <section
             aria-labelledby="contacts-title"
-            className="flex min-h-0 flex-col bg-navy-900 text-slate-300"
+            className="mvp-contacts-panel"
         >
-            <header className="border-b border-slate-400/10 p-4">
+            <header className="mvp-contacts-header">
                 <h2
                     id="contacts-title"
-                    className="text-sm font-semibold text-slate-300"
+                    className="mvp-side-section-title"
                 >
                     Contatos
 
@@ -66,11 +56,11 @@ export function ContactList({
                         setSearch(event.target.value)
                     }
                     placeholder="Buscar contatos..."
-                    className="mt-3 w-full rounded-lg border border-slate-400/15 bg-navy-800 px-3 py-2 text-sm text-slate-300 outline-none focus:border-teal-500"
+                    className="mvp-contact-search"
                 />
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            <div className="mvp-contact-scroll">
                 {filteredContacts.length === 0 ? (
                     <p
                         role="status"
@@ -89,14 +79,9 @@ export function ContactList({
                                         onSelectContact?.(contact)
                                     }
                                     disabled={!onSelectContact || isOpening}
-                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors enabled:cursor-pointer enabled:hover:bg-navy-800 enabled:focus-visible:outline-2 enabled:focus-visible:outline-teal-400 disabled:cursor-default"
+                                    className="mvp-contact-row"
                                 >
-                                    <span
-                                        aria-hidden="true"
-                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-navy-700 text-xs font-semibold text-teal-300"
-                                    >
-                                        {getInitials(contact.name)}
-                                    </span>
+                                    <MvpAvatar name={contact.name} size={26} />
 
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-medium text-slate-300">

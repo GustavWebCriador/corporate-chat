@@ -1,4 +1,3 @@
-
 import { useRef, useState } from "react";
 
 const MAX_MESSAGE_LENGTH = 1000;
@@ -87,8 +86,12 @@ export function MessageComposer({
         <form
             aria-label="Enviar mensagem"
             onSubmit={handleSubmit}
-            className="space-y-3 border-t border-slate-400/10 p-4"
+            className="mvp-message-composer"
         >
+            <div className="mvp-composer-toolbar" aria-hidden="true">
+                <span>Mensagem</span>
+                <span className="mvp-composer-toolbar-hint">Enter para enviar · Shift+Enter para nova linha</span>
+            </div>
             <label
                 htmlFor="message-content"
                 className="sr-only"
@@ -104,7 +107,7 @@ export function MessageComposer({
                 maxLength={MAX_MESSAGE_LENGTH}
                 rows={3}
                 placeholder="Digite sua mensagem..."
-                className="w-full resize-none rounded-lg border border-slate-400/20 bg-navy-800 p-3 text-sm text-slate-300 outline-none focus:border-teal-500 disabled:opacity-50"
+                className="mvp-message-input"
             />
 
             {error && (
@@ -124,7 +127,7 @@ export function MessageComposer({
                 <button
                     type="submit"
                     disabled={!canSend}
-                    className="rounded-lg bg-teal-500 px-5 py-2 text-sm font-semibold text-navy-950 transition-colors enabled:cursor-pointer enabled:hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mvp-message-send"
                 >
                     {isSending
                         ? "Enviando..."

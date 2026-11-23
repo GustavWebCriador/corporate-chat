@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 
 import { MessageList } from "./MessageList";
@@ -74,6 +73,8 @@ export function ConversationHistory({
     currentUserId,
     recipientUserId,
     createClientMessageId,
+    userNames,
+    currentUserName,
 }) {
     const [history, setHistory] = useState(initialHistory);
     const [retryKey, setRetryKey] = useState(0);
@@ -490,7 +491,7 @@ export function ConversationHistory({
     return (
         <section
             aria-label="Histórico da conversa"
-            className="mt-4 rounded-lg border border-slate-400/10 bg-navy-950"
+            className="mvp-history"
         >
             {visibleHistory.status === "loading" && (
                 <p
@@ -572,6 +573,8 @@ export function ConversationHistory({
                         currentUserId={currentUserId}
                         recipientUserId={recipientUserId}
                         checkpoints={checkpoints}
+                        userNames={userNames}
+                        currentUserName={currentUserName}
                     />
 
                     <MessageCheckpoints
