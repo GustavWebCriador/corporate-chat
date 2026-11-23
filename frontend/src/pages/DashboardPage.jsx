@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { useRealtime } from "../features/realtime/hooks/useRealtime";
 import { ContactList } from "../features/dashboard/components/ContactList";
 import { MvpAvatar } from "../components/ui/MvpAvatar";
+import { DashboardNavigationContext } from "../features/dashboard/context/DashboardNavigationContext";
 import { ConversationHistory } from "../features/conversations/components/ConversationHistory";
 import { CreateGroupDialog } from "../features/groups/components/CreateGroupDialog";
 import { GroupDetailsDialog } from "../features/groups/components/GroupDetailsDialog";
@@ -50,6 +51,13 @@ export function DashboardPage() {
     const [showDetails, setShowDetails] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [conversationSearch, setConversationSearch] = useState("");
+
+    // A barra estreita altera a área central. Fora do layout, o componente
+    // também inicia em Conversas e pode ser controlado por um provider.
+    const navigation = useContext(DashboardNavigationContext);
+    const [standaloneView, setStandaloneView] = useState("conversations");
+    const panelView = navigation?.view ?? standaloneView;
+    const setPanelView = navigation?.setView ?? setStandaloneView;
 
     // Não mantém caches de outra sessão e invalida ACKs antigos.
     useEffect(() => {
@@ -318,7 +326,6 @@ export function DashboardPage() {
 
         setOpeningContactId(contact.user_id);
         setConversationError("");
-        setSelectedConversation(null);
 
         try {
             const response = await conversationService.createPrivate(
@@ -338,6 +345,7 @@ export function DashboardPage() {
             });
             refreshDashboard();
             setSidebarOpen(false);
+            setPanelView("conversations");
         } catch (requestError) {
             if (requestError?.status === 401) {
                 setConversationError(
@@ -370,6 +378,7 @@ export function DashboardPage() {
 
         setConversationError("");
         setSidebarOpen(false);
+        setPanelView("conversations");
         const isGroup = conversation.type === "GROUP";
 
         setSelectedConversation({
@@ -386,6 +395,7 @@ export function DashboardPage() {
 
     function handleGroupCreated(group) {
         setCreatingGroup(false);
+        setPanelView("conversations");
         setConversationError("");
         setSelectedConversation({
             id: group._id,
@@ -429,9 +439,18 @@ export function DashboardPage() {
         : null;
 
     return (
-        <div className={`mvp-chat-layout ${showDetails && selectedConversation ? "" : "mvp-details-hidden"}`}>
+        <div
+            className={`mvp-chat-layout ${showDetails && selectedConversation
+                    ? ""
+                    : "mvp-details-hidden"
+                }`}
+        >
             <aside
-                aria-label="Contatos disponíveis"
+                aria-label={
+                    panelView === "contacts"
+                        ? "Contatos disponíveis"
+                        : "Conversas disponíveis"
+                }
                 className={`mvp-chat-sidebar ${sidebarOpen ? "mvp-sidebar-open" : ""}`}
             >
                 <div className="mvp-sidebar-brand">
@@ -440,80 +459,98 @@ export function DashboardPage() {
                     <span className="mvp-sidebar-caret" aria-hidden="true">⌄</span>
                 </div>
                 <div className="mvp-sidebar-scroll chat-scroll">
-                    <div className="mvp-sidebar-search">
-                        <label className="sr-only" htmlFor="mvp-conversation-search">Buscar conversas</label>
-                        <input
-                            id="mvp-conversation-search" type="search"
-                            placeholder="Buscar conversas..."
-                            value={conversationSearch}
-                            onChange={(event) => setConversationSearch(event.target.value)}
-                        />
-                    </div>
-                    {status === "success" && (
+                    {panelView === "conversations" && (
                         <>
-                            <section aria-labelledby="conversations-title" className="mvp-conversations-section">
-                                <div className="mvp-side-section-title">
-                                    <h2 id="conversations-title">Conversas recentes</h2>
-                                    <span aria-label={`${conversations.length} conversas`}>{conversations.length}</span>
-                                </div>
-                                {filteredConversations.length === 0 ? (
-                                    <p className="mvp-empty-side">
-                                        {conversations.length === 0
-                                            ? "Nenhuma conversa iniciada."
-                                            : "Nenhuma conversa encontrada."}
-                                    </p>
-                                ) : (
-                                    <ul className="mvp-conversations-list">
-                                        {filteredConversations.map((conversation) => {
-                                            const isGroup = conversation.type === "GROUP";
-                                            const name = isGroup
-                                                ? conversation.name ?? "Grupo sem nome"
-                                                : conversation.contact?.name ?? "Contato indisponível";
-                                            const isSelected = selectedConversation?.id === conversation.conversation_id;
-                                            return (
-                                                <li key={conversation.conversation_id}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleSelectConversation(conversation)}
-                                                        aria-label={isGroup ? `Abrir grupo ${name}` : `Abrir conversa com ${name}`}
-                                                        aria-pressed={isSelected}
-                                                        disabled={openingContactId !== null}
-                                                        className="mvp-conversation-item"
-                                                    >
-                                                        {isGroup ? (
-                                                            <span className="mvp-channel-hash" aria-hidden="true">#</span>
-                                                        ) : (
-                                                            <MvpAvatar name={name} size={23} />
-                                                        )}
-                                                        <span className="mvp-conversation-text">
-                                                            <span className="mvp-conversation-title">{name}</span>
-                                                            <span className="mvp-conversation-preview">
-                                                                {conversation.last_message?.content ?? "Nenhuma mensagem ainda."}
-                                                            </span>
-                                                        </span>
-                                                    </button>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-                            </section>
-                            <div className="mvp-create-group-toolbar">
-                                <button
-                                    type="button" onClick={() => setCreatingGroup(true)}
-                                    disabled={activeContacts.length === 0}
-                                    className="mvp-new-group-button"
-                                >
-                                    <span aria-hidden="true">＋</span> Novo grupo
-                                </button>
+                            <div className="mvp-sidebar-search">
+                                <label className="sr-only" htmlFor="mvp-conversation-search">Buscar conversas</label>
+                                <input
+                                    id="mvp-conversation-search" type="search"
+                                    placeholder="Buscar conversas..."
+                                    value={conversationSearch}
+                                    onChange={(event) => setConversationSearch(event.target.value)}
+                                />
                             </div>
-                            <ContactList
-                                contacts={contacts}
-                                onSelectContact={handleSelectContact}
-                                isOpening={openingContactId !== null}
-                            />
+                            {status === "success" && (
+                                <>
+                                    <section aria-labelledby="conversations-title" className="mvp-conversations-section">
+                                        <div className="mvp-side-section-title">
+                                            <h2 id="conversations-title">Conversas recentes</h2>
+                                            <div className="mvp-conversations-heading-actions">
+                                                <span aria-label={`${conversations.length} conversas`}>{conversations.length}</span>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Novo grupo"
+                                                    title="Criar novo grupo"
+                                                    className="mvp-new-group-icon"
+                                                    onClick={() => setCreatingGroup(true)}
+                                                    disabled={activeContacts.length === 0}
+                                                >
+                                                    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" strokeWidth="2"
+                                                        strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M12 5v14M5 12h14" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {filteredConversations.length === 0 ? (
+                                            <p className="mvp-empty-side">
+                                                {conversations.length === 0
+                                                    ? "Nenhuma conversa iniciada."
+                                                    : "Nenhuma conversa encontrada."}
+                                            </p>
+                                        ) : (
+                                            <ul className="mvp-conversations-list">
+                                                {filteredConversations.map((conversation) => {
+                                                    const isGroup = conversation.type === "GROUP";
+                                                    const name = isGroup
+                                                        ? conversation.name ?? "Grupo sem nome"
+                                                        : conversation.contact?.name ?? "Contato indisponível";
+                                                    const isSelected = selectedConversation?.id === conversation.conversation_id;
+                                                    return (
+                                                        <li key={conversation.conversation_id}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSelectConversation(conversation)}
+                                                                aria-label={isGroup ? `Abrir grupo ${name}` : `Abrir conversa com ${name}`}
+                                                                aria-pressed={isSelected}
+                                                                disabled={openingContactId !== null}
+                                                                className="mvp-conversation-item"
+                                                            >
+                                                                {isGroup ? (
+                                                                    <span className="mvp-channel-hash" aria-hidden="true">#</span>
+                                                                ) : (
+                                                                    <MvpAvatar name={name} size={23} />
+                                                                )}
+                                                                <span className="mvp-conversation-text">
+                                                                    <span className="mvp-conversation-title">{name}</span>
+                                                                    <span className="mvp-conversation-preview">
+                                                                        {conversation.last_message?.content ?? "Nenhuma mensagem ainda."}
+                                                                    </span>
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
+                                    </section>
+                                    {/* Contatos agora aparecem exclusivamente na área central,
+                                ao clicar no ícone de pessoas da barra estreita. */}
+                                </>
+                            )}
+
                         </>
                     )}
+
+                    {panelView === "contacts" && status === "success" && (
+                        <ContactList
+                            contacts={activeContacts}
+                            onSelectContact={handleSelectContact}
+                            isOpening={openingContactId !== null}
+                        />
+                    )}
+
                 </div>
             </aside>
 
@@ -528,7 +565,9 @@ export function DashboardPage() {
                             <h1 className="sr-only">Dashboard</h1>
                             <p className="mvp-chat-breadcrumb">
                                 <span aria-hidden="true">{selectedConversation?.type === "GROUP" ? "#" : "◉"}</span>
-                                <strong>{selectedConversation?.name || "Conversas"}</strong>
+                                <strong>
+                                    {selectedConversation?.name || "Conversas"}
+                                </strong>
                             </p>
                             <p className="mvp-chat-welcome">Bem-vindo, {user?.name || "usuário"}.</p>
                         </div>
@@ -619,7 +658,7 @@ export function DashboardPage() {
                         <span className="is-disabled" title="Funcionalidade não disponível">Arquivos</span>
                     </div>
                     <div className="mvp-details-body">
-                        <MvpAvatar name={selectedConversation.name} size={38}/>
+                        <MvpAvatar name={selectedConversation.name} size={38} />
                         <h2>{selectedConversation.name}</h2>
                         {selectedContact?.email && <p className="mvp-details-email">{selectedContact.email}</p>}
                         {selectedConversation.type === "GROUP" && (

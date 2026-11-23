@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import { DashboardPage } from "./DashboardPage";
+import { DashboardNavigationContext } from "../features/dashboard/context/DashboardNavigationContext";
 import { dashboardService } from "../services/api/dashboardService";
 import { conversationService } from "../services/api/conversationService";
 import { groupService } from "../services/api/groupService";
@@ -90,23 +92,54 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+// A FE-09 apresenta o diretório central somente quando selecionado na barra.
+function DashboardOnContacts() {
+    const [view, setView] = useState("contacts");
+    return (
+        <DashboardNavigationContext.Provider value={{ view, setView }}>
+            <DashboardPage />
+        </DashboardNavigationContext.Provider>
+    );
+}
+
 test("deve carregar contatos reais do serviço", async () => {
-    render(<DashboardPage />);
+    render(<DashboardOnContacts />);
     expect(await screen.findByText("Maria Oliveira")).toBeInTheDocument();
     expect(dashboardService.getDashboard).toHaveBeenCalledTimes(1);
 });
 
 test("deve apresentar o estado vazio", async () => {
-    dashboardService.getDashboard.mockResolvedValue({ contacts: [], conversations: [] });
+    dashboardService.getDashboard.mockResolvedValue({
+        contacts: [],
+        conversations: [],
+    });
+
+    // Visualização Contatos
+    const { unmount } = render(<DashboardOnContacts />);
+
+    expect(
+        await screen.findByText("Nenhum contato disponível.")
+    ).toBeInTheDocument();
+
+    unmount();
+
+    // Visualização Conversas
     render(<DashboardPage />);
-    expect(await screen.findByText("Nenhum contato disponível.")).toBeInTheDocument();
-    expect(screen.getByText("Nenhuma conversa iniciada.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Novo grupo" })).toBeDisabled();
+
+    expect(
+        await screen.findByText("Nenhuma conversa iniciada.")
+    ).toBeInTheDocument();
+
+    expect(
+        screen.getByRole("button", {
+            name: "Novo grupo",
+        })
+    ).toBeDisabled();
 });
 
 test("deve permitir tentar novamente após erro", async () => {
     dashboardService.getDashboard.mockRejectedValueOnce(new Error("Falha")).mockResolvedValueOnce(dashboard);
-    render(<DashboardPage />);
+    render(<DashboardOnContacts />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível carregar o dashboard.");
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(await screen.findByText("Maria Oliveira")).toBeInTheDocument();
@@ -124,7 +157,7 @@ test("deve preservar o logout", async () => {
 });
 
 test("deve abrir conversa privada ao selecionar um contato", async () => {
-    render(<DashboardPage />);
+    render(<DashboardOnContacts />);
     fireEvent.click(await screen.findByRole("button", { name: "Abrir conversa com Maria Oliveira" }));
     await waitFor(() => expect(conversationService.createPrivate).toHaveBeenCalledWith("user-01"));
     expect(await screen.findByRole("heading", { name: "Conversa com Maria Oliveira" })).toBeInTheDocument();
@@ -132,7 +165,7 @@ test("deve abrir conversa privada ao selecionar um contato", async () => {
 
 test("deve apresentar erro ao abrir conversa privada", async () => {
     conversationService.createPrivate.mockRejectedValue(new Error("Falha de conexão"));
-    render(<DashboardPage />);
+    render(<DashboardOnContacts />);
     fireEvent.click(await screen.findByRole("button", { name: "Abrir conversa com Maria Oliveira" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Não foi possível abrir a conversa.");
 });
@@ -237,14 +270,38 @@ test("FE-06: atualiza a prévia ao receber message:new", async () => {
 
 test("FE-06: atualiza dashboard após reconexão", async () => {
     const { socket } = makeSocket();
-    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 0 });
-    const { rerender } = render(<DashboardPage />);
-    await screen.findByText("Maria Oliveira");
-    expect(dashboardService.getDashboard).toHaveBeenCalledTimes(1);
 
-    useRealtime.mockReturnValue({ socket, status: "connected", readyVersion: 1 });
+    useRealtime.mockReturnValue({
+        socket,
+        status: "connected",
+        readyVersion: 0,
+    });
+
+    const { rerender } = render(<DashboardPage />);
+
+    // Aguarda o carregamento inicial do dashboard.
+    expect(
+        await screen.findByText("Nenhuma conversa iniciada.")
+    ).toBeInTheDocument();
+
+    expect(
+        dashboardService.getDashboard
+    ).toHaveBeenCalledTimes(1);
+
+    // Simula uma reconexão do Socket.IO.
+    useRealtime.mockReturnValue({
+        socket,
+        status: "connected",
+        readyVersion: 1,
+    });
+
     rerender(<DashboardPage />);
-    await waitFor(() => expect(dashboardService.getDashboard).toHaveBeenCalledTimes(2));
+
+    await waitFor(() => {
+        expect(
+            dashboardService.getDashboard
+        ).toHaveBeenCalledTimes(2);
+    });
 });
 
 test("FE-06: confirma entrega sem abrir a conversa", async () => {
