@@ -35,6 +35,10 @@ vi.mock("../services/api/dashboardService", () => ({
     },
 }));
 
+vi.mock("../pages/AdminPage", () => ({
+    AdminPage: () => <h1>Área administrativa de teste</h1>,
+}));
+
 function LocationSpy() {
     const location = useLocation();
 
@@ -168,4 +172,39 @@ test("deve permitir acesso ao dashboard autenticado", () => {
     expect(
         screen.getByTestId("current-route")
     ).toHaveTextContent("/dashboard");
+});
+
+
+test("FE-08: usuário não autenticado não acessa a área administrativa", async () => {
+    renderRoutes("/admin");
+    await waitFor(() => {
+        expect(screen.getByTestId("current-route")).toHaveTextContent("/login");
+    });
+    expect(screen.queryByText("Área administrativa de teste")).not.toBeInTheDocument();
+});
+
+test("FE-08: usuário comum é redirecionado ao dashboard", async () => {
+    useAuth.mockReturnValue({
+        user: { user_id: "common-1", name: "Usuário Comum", is_admin: false },
+        token: "jwt-simulado", loading: false, isAuthenticated: true,
+        login: vi.fn(), logout: vi.fn(),
+    });
+    renderRoutes("/admin");
+    await waitFor(() => {
+        expect(screen.getByTestId("current-route")).toHaveTextContent("/dashboard");
+    });
+    expect(screen.queryByText("Área administrativa de teste")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Administração" })).not.toBeInTheDocument();
+});
+
+test("FE-08: administrador acessa área e encontra navegação dedicada", async () => {
+    useAuth.mockReturnValue({
+        user: { user_id: "admin-1", name: "Administrador", is_admin: true },
+        token: "jwt-simulado", loading: false, isAuthenticated: true,
+        login: vi.fn(), logout: vi.fn(),
+    });
+    renderRoutes("/admin");
+    expect(screen.getByRole("heading", { name: "Área administrativa de teste" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Administração" })).toHaveAttribute("href", "/admin");
+    expect(screen.getByTestId("current-route")).toHaveTextContent("/admin");
 });
