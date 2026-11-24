@@ -1,0 +1,67 @@
+
+# Complementa docker-compose.deploy.yml
+# com frontend, proxy HTTPS e ajuste de memória.
+
+services:
+  mongodb:
+    command:
+      - mongod
+      - --wiredTigerCacheSizeGB
+      - "0.5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.aws
+      args:
+        VITE_BACKEND_URL: ${PUBLIC_APP_URL:?PUBLIC_APP_URL obrigatoria}
+
+    restart: unless-stopped
+
+    read_only: true
+
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - -O
+        - /dev/null
+        - http://127.0.0.1/
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  proxy:
+    image: caddy:2-alpine
+
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN obrigatorio}
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+
+    volumes:
+      - ./deploy/aws/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:
