@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { useRealtime } from "../features/realtime/hooks/useRealtime";
 import { ContactList } from "../features/dashboard/components/ContactList";
+import { MvpAvatar } from "../components/ui/MvpAvatar";
+import { DashboardNavigationContext } from "../features/dashboard/context/DashboardNavigationContext";
 import { ConversationHistory } from "../features/conversations/components/ConversationHistory";
 import { CreateGroupDialog } from "../features/groups/components/CreateGroupDialog";
 import { GroupDetailsDialog } from "../features/groups/components/GroupDetailsDialog";
@@ -46,6 +48,16 @@ export function DashboardPage() {
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [managingGroupId, setManagingGroupId] = useState(null);
+    const [showDetails, setShowDetails] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [conversationSearch, setConversationSearch] = useState("");
+
+    // A barra estreita altera a área central. Fora do layout, o componente
+    // também inicia em Conversas e pode ser controlado por um provider.
+    const navigation = useContext(DashboardNavigationContext);
+    const [standaloneView, setStandaloneView] = useState("conversations");
+    const panelView = navigation?.view ?? standaloneView;
+    const setPanelView = navigation?.setView ?? setStandaloneView;
 
     // Não mantém caches de outra sessão e invalida ACKs antigos.
     useEffect(() => {
@@ -314,7 +326,6 @@ export function DashboardPage() {
 
         setOpeningContactId(contact.user_id);
         setConversationError("");
-        setSelectedConversation(null);
 
         try {
             const response = await conversationService.createPrivate(
@@ -333,6 +344,8 @@ export function DashboardPage() {
                 recipientUserId: contact.user_id,
             });
             refreshDashboard();
+            setSidebarOpen(false);
+            setPanelView("conversations");
         } catch (requestError) {
             if (requestError?.status === 401) {
                 setConversationError(
@@ -364,6 +377,8 @@ export function DashboardPage() {
         }
 
         setConversationError("");
+        setSidebarOpen(false);
+        setPanelView("conversations");
         const isGroup = conversation.type === "GROUP";
 
         setSelectedConversation({
@@ -380,6 +395,7 @@ export function DashboardPage() {
 
     function handleGroupCreated(group) {
         setCreatingGroup(false);
+        setPanelView("conversations");
         setConversationError("");
         setSelectedConversation({
             id: group._id,
@@ -407,215 +423,253 @@ export function DashboardPage() {
         refreshDashboard();
     }
 
-    return (
-        <div className="grid min-h-screen grid-cols-1 bg-navy-950 text-slate-300 md:grid-cols-[260px_minmax(0,1fr)]">
-            <aside
-                aria-label="Contatos disponíveis"
-                className="min-w-0 border-b border-slate-400/10 md:border-b-0 md:border-r"
-            >
-                {status === "success" && (
-                    <>
-                        <div className="border-b border-slate-400/10 p-4">
-                            <button
-                                type="button"
-                                onClick={() => setCreatingGroup(true)}
-                                disabled={activeContacts.length === 0}
-                                className="w-full rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-navy-950 transition-colors enabled:hover:bg-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Novo grupo
-                            </button>
-                        </div>
+    const filter = conversationSearch.trim().toLocaleLowerCase("pt-BR");
+    const filteredConversations = conversations.filter((conversation) => {
+        if (!filter) return true;
+        const name = conversation.type === "GROUP"
+            ? conversation.name || ""
+            : conversation.contact?.name || "";
+        return name.toLocaleLowerCase("pt-BR").includes(filter);
+    });
+    const contactNames = Object.fromEntries(
+        contacts.filter(c => c?.user_id && c?.name).map(c => [c.user_id, c.name])
+    );
+    const selectedContact = selectedConversation?.type === "PRIVATE"
+        ? contacts.find(c => c.user_id === selectedConversation.recipientUserId)
+        : null;
 
+    return (
+        <div
+            className={`mvp-chat-layout ${showDetails && selectedConversation
+                    ? ""
+                    : "mvp-details-hidden"
+                }`}
+        >
+            <aside
+                aria-label={
+                    panelView === "contacts"
+                        ? "Contatos disponíveis"
+                        : "Conversas disponíveis"
+                }
+                className={`mvp-chat-sidebar ${sidebarOpen ? "mvp-sidebar-open" : ""}`}
+            >
+                <div className="mvp-sidebar-brand">
+                    <span className="mvp-mini-mark">Cc</span>
+                    <strong className="truncate">Corporate Chat</strong>
+                    <span className="mvp-sidebar-caret" aria-hidden="true">⌄</span>
+                </div>
+                <div className="mvp-sidebar-scroll chat-scroll">
+                    {panelView === "conversations" && (
+                        <>
+                            <div className="mvp-sidebar-search">
+                                <label className="sr-only" htmlFor="mvp-conversation-search">Buscar conversas</label>
+                                <input
+                                    id="mvp-conversation-search" type="search"
+                                    placeholder="Buscar conversas..."
+                                    value={conversationSearch}
+                                    onChange={(event) => setConversationSearch(event.target.value)}
+                                />
+                            </div>
+                            {status === "success" && (
+                                <>
+                                    <section aria-labelledby="conversations-title" className="mvp-conversations-section">
+                                        <div className="mvp-side-section-title">
+                                            <h2 id="conversations-title">Conversas recentes</h2>
+                                            <div className="mvp-conversations-heading-actions">
+                                                <span aria-label={`${conversations.length} conversas`}>{conversations.length}</span>
+                                                <button
+                                                    type="button"
+                                                    aria-label="Novo grupo"
+                                                    title="Criar novo grupo"
+                                                    className="mvp-new-group-icon"
+                                                    onClick={() => setCreatingGroup(true)}
+                                                    disabled={activeContacts.length === 0}
+                                                >
+                                                    <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24"
+                                                        fill="none" stroke="currentColor" strokeWidth="2"
+                                                        strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M12 5v14M5 12h14" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {filteredConversations.length === 0 ? (
+                                            <p className="mvp-empty-side">
+                                                {conversations.length === 0
+                                                    ? "Nenhuma conversa iniciada."
+                                                    : "Nenhuma conversa encontrada."}
+                                            </p>
+                                        ) : (
+                                            <ul className="mvp-conversations-list">
+                                                {filteredConversations.map((conversation) => {
+                                                    const isGroup = conversation.type === "GROUP";
+                                                    const name = isGroup
+                                                        ? conversation.name ?? "Grupo sem nome"
+                                                        : conversation.contact?.name ?? "Contato indisponível";
+                                                    const isSelected = selectedConversation?.id === conversation.conversation_id;
+                                                    return (
+                                                        <li key={conversation.conversation_id}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSelectConversation(conversation)}
+                                                                aria-label={isGroup ? `Abrir grupo ${name}` : `Abrir conversa com ${name}`}
+                                                                aria-pressed={isSelected}
+                                                                disabled={openingContactId !== null}
+                                                                className="mvp-conversation-item"
+                                                            >
+                                                                {isGroup ? (
+                                                                    <span className="mvp-channel-hash" aria-hidden="true">#</span>
+                                                                ) : (
+                                                                    <MvpAvatar name={name} size={23} />
+                                                                )}
+                                                                <span className="mvp-conversation-text">
+                                                                    <span className="mvp-conversation-title">{name}</span>
+                                                                    <span className="mvp-conversation-preview">
+                                                                        {conversation.last_message?.content ?? "Nenhuma mensagem ainda."}
+                                                                    </span>
+                                                                </span>
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        )}
+                                    </section>
+                                    {/* Contatos agora aparecem exclusivamente na área central,
+                                ao clicar no ícone de pessoas da barra estreita. */}
+                                </>
+                            )}
+
+                        </>
+                    )}
+
+                    {panelView === "contacts" && status === "success" && (
                         <ContactList
-                            contacts={contacts}
+                            contacts={activeContacts}
                             onSelectContact={handleSelectContact}
                             isOpening={openingContactId !== null}
                         />
-                    </>
-                )}
+                    )}
+
+                </div>
             </aside>
 
-            <main className="min-w-0 px-5 py-6 md:px-8">
-                <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-400/10 pb-5">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-300">
-                            Dashboard
-                        </h1>
-                        <p className="mt-2 text-sm text-slate-400">
-                            Bem-vindo, {user?.name || "usuário"}.
-                        </p>
+            <main className="mvp-chat-main">
+                <header className="mvp-chat-topbar">
+                    <div className="mvp-chat-header-main">
+                        <button type="button" className="mvp-toggle-sidebar"
+                            onClick={() => setSidebarOpen(current => !current)}
+                            aria-label={sidebarOpen ? "Ocultar conversas" : "Mostrar conversas"}
+                            aria-expanded={sidebarOpen}>☰</button>
+                        <div className="mvp-chat-header-text">
+                            <h1 className="sr-only">Dashboard</h1>
+                            <p className="mvp-chat-breadcrumb">
+                                <span aria-hidden="true">{selectedConversation?.type === "GROUP" ? "#" : "◉"}</span>
+                                <strong>
+                                    {selectedConversation?.name || "Conversas"}
+                                </strong>
+                            </p>
+                            <p className="mvp-chat-welcome">Bem-vindo, {user?.name || "usuário"}.</p>
+                        </div>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        disabled={authLoading}
-                        className="rounded-lg border border-slate-400/20 px-4 py-2 text-sm text-slate-300 hover:bg-navy-800 disabled:opacity-50"
-                    >
-                        {authLoading ? "Saindo..." : "Sair"}
-                    </button>
+                    <div className="mvp-header-actions">
+                        <span className="mvp-connection-indicator" title="Estado do Socket.IO">
+                            <span className={realtimeStatus === "connected" ? "online" : "offline"} />
+                            {realtimeStatus === "connected" ? "Conectado" : "Desconectado"}
+                        </span>
+                        <button type="button" aria-pressed={showDetails}
+                            onClick={() => setShowDetails(current => !current)}
+                            disabled={!selectedConversation}>
+                            {showDetails ? "Ocultar detalhes" : "Detalhes"}
+                        </button>
+                        <button type="button" onClick={handleLogout} disabled={authLoading}>
+                            {authLoading ? "Saindo..." : "Sair"}
+                        </button>
+                    </div>
                 </header>
 
                 {status === "success" && error && (
-                    <p role="alert" className="mb-4 rounded-lg border border-rose-500/20 p-3 text-sm text-rose-400">
+                    <p role="alert" className="mvp-chat-alert">
                         {error} As conversas já carregadas continuam disponíveis.
                     </p>
                 )}
-
                 {openingContactId && (
-                    <p role="status" className="mb-4 text-sm text-teal-300">
-                        Abrindo conversa...
-                    </p>
+                    <p role="status" className="mvp-chat-notice">Abrindo conversa...</p>
                 )}
-
                 {conversationError && (
-                    <p
-                        role="alert"
-                        className="mb-4 rounded-lg border border-rose-500/20 bg-navy-900 p-4 text-sm text-rose-500"
-                    >
+                    <p role="alert" className="mvp-chat-alert">
                         {conversationError}
                     </p>
                 )}
 
                 {selectedConversation && (
-                    <section
-                        aria-labelledby="selected-conversation-title"
-                        className="mb-6 rounded-lg border border-teal-500/20 bg-navy-900 p-5"
-                    >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <h2
-                                id="selected-conversation-title"
-                                className="text-lg font-semibold"
-                            >
+                    <section aria-labelledby="selected-conversation-title" className="mvp-active-conversation">
+                        <div className="mvp-selected-conversation-top">
+                            <h2 id="selected-conversation-title" className="mvp-active-conversation-heading">
                                 {selectedConversation.type === "GROUP"
                                     ? `Grupo: ${selectedConversation.name}`
                                     : `Conversa com ${selectedConversation.name}`}
                             </h2>
-
-                            <div className="flex gap-2">
+                            <div className="mvp-selected-actions">
                                 {selectedConversation.type === "GROUP" && (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setManagingGroupId(selectedConversation.id)
-                                        }
-                                        className="rounded-lg border border-teal-500/30 px-3 py-1 text-sm text-teal-300 hover:bg-navy-800"
-                                    >
+                                    <button type="button" onClick={() => setManagingGroupId(selectedConversation.id)}>
                                         Gerenciar grupo
                                     </button>
                                 )}
-
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedConversation(null)}
-                                    aria-label="Fechar conversa"
-                                    className="rounded-lg border border-slate-400/20 px-3 py-1 text-sm hover:bg-navy-800"
-                                >
-                                    Fechar
-                                </button>
+                                <button type="button" aria-label="Fechar conversa"
+                                    onClick={() => setSelectedConversation(null)}>Fechar</button>
                             </div>
                         </div>
-
                         <ConversationHistory
                             key={selectedConversation.id}
                             conversationId={selectedConversation.id}
                             currentUserId={user?.user_id}
+                            currentUserName={user?.name || "Você"}
                             recipientUserId={selectedConversation.recipientUserId}
+                            userNames={contactNames}
                         />
                     </section>
                 )}
-
                 {status === "loading" && (
-                    <p role="status" className="text-sm text-slate-400">
-                        Carregando dashboard...
-                    </p>
+                    <p role="status" className="mvp-chat-notice">Carregando dashboard...</p>
                 )}
-
                 {status === "error" && (
-                    <div role="alert" className="space-y-4">
-                        <p className="text-sm text-rose-500">{error}</p>
-                        <button
-                            type="button"
-                            onClick={handleRetry}
-                            className="rounded-lg bg-teal-500 px-4 py-2 text-sm font-semibold text-navy-950"
-                        >
-                            Tentar novamente
-                        </button>
+                    <div role="alert" className="mvp-chat-alert">
+                        <p>{error}</p>
+                        <button type="button" onClick={handleRetry}>Tentar novamente</button>
                     </div>
                 )}
-
-                {status === "success" && (
-                    <section aria-labelledby="conversations-title">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2
-                                id="conversations-title"
-                                className="text-lg font-semibold"
-                            >
-                                Conversas recentes
-                            </h2>
-                            <span className="text-sm text-slate-400">
-                                {conversations.length}
-                            </span>
-                        </div>
-
-                        {conversations.length === 0 ? (
-                            <p className="rounded-lg border border-slate-400/10 bg-navy-900 p-5 text-sm text-slate-400">
-                                Nenhuma conversa iniciada.
-                            </p>
-                        ) : (
-                            <ul className="space-y-2">
-                                {conversations.map((conversation) => {
-                                    const isGroup = conversation.type === "GROUP";
-                                    const name = isGroup
-                                        ? conversation.name ?? "Grupo sem nome"
-                                        : conversation.contact?.name ??
-                                          "Contato indisponível";
-                                    const isSelected =
-                                        selectedConversation?.id ===
-                                        conversation.conversation_id;
-
-                                    return (
-                                        <li key={conversation.conversation_id}>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleSelectConversation(conversation)
-                                                }
-                                                aria-label={
-                                                    isGroup
-                                                        ? `Abrir grupo ${name}`
-                                                        : `Abrir conversa com ${name}`
-                                                }
-                                                aria-pressed={isSelected}
-                                                disabled={openingContactId !== null}
-                                                className={`w-full rounded-lg border p-4 text-left transition-colors hover:bg-navy-800 ${
-                                                    isSelected
-                                                        ? "border-teal-500/50 bg-navy-800"
-                                                        : "border-slate-400/10 bg-navy-900"
-                                                }`}
-                                            >
-                                                <p className="font-semibold">
-                                                    {isGroup && (
-                                                        <span className="mr-2 text-teal-300">
-                                                            Grupo
-                                                        </span>
-                                                    )}
-                                                    {name}
-                                                </p>
-                                                <p className="mt-1 truncate text-sm text-slate-400">
-                                                    {conversation.last_message?.content ??
-                                                        "Nenhuma mensagem ainda."}
-                                                </p>
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        )}
-                    </section>
+                {status === "success" && !selectedConversation && (
+                    <div className="mvp-chat-placeholder" role="status">
+                        <span className="mvp-chat-placeholder-icon" aria-hidden="true">Cc</span>
+                        <p>Selecione uma conversa ou contato para começar.</p>
+                    </div>
                 )}
             </main>
 
+            {selectedConversation && showDetails && (
+                <aside className="mvp-chat-details" aria-label="Detalhes da conversa">
+                    <div className="mvp-details-heading">
+                        <strong>{selectedConversation.name}</strong>
+                        <p>{selectedConversation.type === "GROUP" ? "Conversa em grupo" : "Conversa privada"}</p>
+                    </div>
+                    <div className="mvp-details-tabs">
+                        <span className="is-active">Informações</span>
+                        <span className="is-disabled" title="Funcionalidade não disponível">Arquivos</span>
+                    </div>
+                    <div className="mvp-details-body">
+                        <MvpAvatar name={selectedConversation.name} size={38} />
+                        <h2>{selectedConversation.name}</h2>
+                        {selectedContact?.email && <p className="mvp-details-email">{selectedContact.email}</p>}
+                        {selectedConversation.type === "GROUP" && (
+                            <button type="button" className="mvp-details-action"
+                                onClick={() => setManagingGroupId(selectedConversation.id)}>
+                                Gerenciar membros
+                            </button>
+                        )}
+                    </div>
+                </aside>
+            )}
             {creatingGroup && (
                 <CreateGroupDialog
                     contacts={activeContacts}
@@ -623,7 +677,6 @@ export function DashboardPage() {
                     onCreated={handleGroupCreated}
                 />
             )}
-
             {managingGroupId && (
                 <GroupDetailsDialog
                     key={managingGroupId}
