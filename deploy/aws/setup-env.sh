@@ -1,5 +1,3 @@
-#Esse script gera as credenciais de produção na EC2. Ele se recusa a sobrescrever um
-#.env existente para não trocar acidentalmente senhas de bancos já inicializados.
 #!/usr/bin/env bash
 set -euo pipefail
 
