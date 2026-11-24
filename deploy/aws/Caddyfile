@@ -1,0 +1,19 @@
+#O Caddy será responsável por receber as conexões HTTPS e direcionar as requisições para os containers
+# Domínio fornecido pela variável APP_DOMAIN.
+# Exemplo provisório: 18-191-222-106.sslip.io
+
+{$APP_DOMAIN} {
+    encode zstd gzip
+
+    # API REST e comunicação Socket.IO
+    @backend path /api/* /socket.io/*
+
+    handle @backend {
+        reverse_proxy api:3000
+    }
+
+    # Interface React
+    handle {
+        reverse_proxy frontend:80
+    }
+}

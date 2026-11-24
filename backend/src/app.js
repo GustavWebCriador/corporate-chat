@@ -36,6 +36,12 @@ function createApp({
     messageService = createMessageService(),
 } = {}) {
     const app = express();
+    // Confia em uma camada de proxy reverso em produção.
+    // Necessário para identificar corretamente o IP do cliente
+    // nos rate limiters e reconhecer o protocolo HTTPS.
+    if (process.env.NODE_ENV === "production") {
+    app.set("trust proxy", 1);
+    }
 
     app.disable(
         "x-powered-by"
