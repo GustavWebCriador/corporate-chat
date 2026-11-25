@@ -81,6 +81,21 @@ export function MessageComposer({
             setIsSending(false);
         }
     }
+    function handleKeyDown(event) {
+        if (event.nativeEvent.isComposing) {
+            return;
+        }
+
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+
+            if (event.repeat) {
+                return;
+            }
+
+            event.currentTarget.form?.requestSubmit();
+        }
+    }
 
     return (
         <form
@@ -103,6 +118,7 @@ export function MessageComposer({
                 id="message-content"
                 value={content}
                 onChange={handleContentChange}
+                onKeyDown={handleKeyDown}
                 disabled={isSending}
                 maxLength={MAX_MESSAGE_LENGTH}
                 rows={3}
