@@ -1617,3 +1617,22 @@ h4,
     font-size: 10px;
     color: #64748b;
 }
+
+/* =========================================
+   CORPORATE CHAT — BRAND ICON
+========================================= */
+
+.brand-icon {
+    display: block;
+    flex-shrink: 0;
+    object-fit: contain;
+    background: transparent;
+    border: none;
+    padding: 0;
+    user-select: none;
+}
+
+.brand-icon-placeholder {
+    display: inline-block;
+    margin-bottom: 10px;
+}

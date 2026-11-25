@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../features/auth/hooks/useAuth";
+import { BrandIcon } from "../components/ui/BrandIcon";
 
 /** FE-09: identidade visual do MVP com autenticação real preservada. */
 export function LoginPage() {
@@ -39,7 +40,7 @@ export function LoginPage() {
         <div className="mvp-login-shell">
             <section className="mvp-login-brand" aria-label="Apresentação do Corporate Chat">
                 <div className="mvp-brand-lockup">
-                    <span className="mvp-logo-mark">Cc</span>
+                    <BrandIcon size={32} alt="" />
                     <span>Corporate Chat</span>
                 </div>
 
@@ -65,7 +66,7 @@ export function LoginPage() {
                         e manter sua equipe alinhada.
                     </p>
                     <div className="mvp-login-footer-signature">
-                        <span className="mvp-login-footer-logo" aria-hidden="true">Cc</span>
+                        <BrandIcon size={32} alt="" />
                         <div className="mvp-login-footer-copy">
                             <strong>Corporate Chat</strong>
                             <span>Plataforma de comunicação interna</span>
@@ -76,7 +77,7 @@ export function LoginPage() {
 
             <main className="mvp-login-main">
                 <div className="mvp-login-mobile-logo mvp-brand-lockup">
-                    <span className="mvp-logo-mark">Cc</span>
+                    <BrandIcon size={32} alt="" />
                     <span>Corporate Chat</span>
                 </div>
 
