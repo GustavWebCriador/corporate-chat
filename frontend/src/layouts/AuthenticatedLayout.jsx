@@ -9,6 +9,7 @@ import {
 
 import { useAuth } from "../features/auth/hooks/useAuth";
 import { MvpAvatar } from "../components/ui/MvpAvatar";
+import { BrandIcon } from "../components/ui/BrandIcon";
 
 import { DashboardNavigationContext } from
     "../features/dashboard/context/DashboardNavigationContext";
@@ -45,12 +46,7 @@ export function AuthenticatedLayout() {
                     className="mvp-workspace-rail"
                     aria-label="Identidade da aplicação"
                 >
-                    <div
-                        className="mvp-logo-mark mvp-logo-rail"
-                        title="Corporate Chat"
-                    >
-                        Cc
-                    </div>
+                   <BrandIcon size={32} />
 
                     <nav
                         className="mvp-rail-nav"

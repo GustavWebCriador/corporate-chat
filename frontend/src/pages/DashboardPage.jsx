@@ -8,7 +8,7 @@ import { DashboardNavigationContext } from "../features/dashboard/context/Dashbo
 import { ConversationHistory } from "../features/conversations/components/ConversationHistory";
 import { CreateGroupDialog } from "../features/groups/components/CreateGroupDialog";
 import { GroupDetailsDialog } from "../features/groups/components/GroupDetailsDialog";
-
+import { BrandIcon } from "../components/ui/BrandIcon";
 import { dashboardService } from "../services/api/dashboardService";
 import { conversationService } from "../services/api/conversationService";
 import { markRealtimeDelivered } from "../services/realtime/chatCheckpoints";
@@ -441,8 +441,8 @@ export function DashboardPage() {
     return (
         <div
             className={`mvp-chat-layout ${showDetails && selectedConversation
-                    ? ""
-                    : "mvp-details-hidden"
+                ? ""
+                : "mvp-details-hidden"
                 }`}
         >
             <aside
@@ -454,7 +454,7 @@ export function DashboardPage() {
                 className={`mvp-chat-sidebar ${sidebarOpen ? "mvp-sidebar-open" : ""}`}
             >
                 <div className="mvp-sidebar-brand">
-                    <span className="mvp-mini-mark">Cc</span>
+                    <BrandIcon size={16} alt="" />
                     <strong className="truncate">Corporate Chat</strong>
                     <span className="mvp-sidebar-caret" aria-hidden="true">⌄</span>
                 </div>
@@ -641,7 +641,11 @@ export function DashboardPage() {
                 )}
                 {status === "success" && !selectedConversation && (
                     <div className="mvp-chat-placeholder" role="status">
-                        <span className="mvp-chat-placeholder-icon" aria-hidden="true">Cc</span>
+                        <BrandIcon
+                            size={48}
+                            className="brand-icon-placeholder"
+                            alt=""
+                        />
                         <p>Selecione uma conversa ou contato para começar.</p>
                     </div>
                 )}
